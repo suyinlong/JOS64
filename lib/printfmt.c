@@ -54,7 +54,7 @@ printnum(void (*putch)(int, void*), void *putdat,
 static unsigned long long
 getuint(va_list *ap, int lflag)
 {
-	unsigned long long x;    
+	unsigned long long x;
 	if (lflag >= 2)
 		x= va_arg(*ap, unsigned long long);
 	else if (lflag)
@@ -211,10 +211,13 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		// (unsigned) octal
 		case 'o':
 			// Replace this with your code.
-			putch('X', putdat);
-			putch('X', putdat);
-			putch('X', putdat);
-			break;
+			num = getint(&aq,3);
+			if ((long long) num < 0) {
+				putch('-', putdat);
+				num = -(long long) num;
+			}
+			base = 8;
+			goto number;
 
 		// pointer
 		case 'p':
