@@ -329,6 +329,10 @@ x64_vm_init(void)
 	check_page_free_list(1);
 	check_page_alloc();
 	page_check();
+
+	// moved to here
+	lcr3(boot_cr3);
+
 	check_page_free_list(0);
 
 	// moved to here
@@ -372,6 +376,7 @@ page_init(void)
 	// is constructed
 	// NB: Remember to mark the memory used for initial boot page table i.e (va>=BOOT_PAGE_TABLE_START && va < BOOT_PAGE_TABLE_END) as in-use (not free)
 	size_t i;
+	uint64_t kva;
 	struct PageInfo* last = NULL;
 
 	for (i = 1; i < npages; i++) {
@@ -1147,4 +1152,3 @@ page_check(void)
 
 	cprintf("check_page() succeeded!\n");
 }
-
