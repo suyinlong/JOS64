@@ -198,7 +198,7 @@ env_setup_vm(struct Env *e)
 	p->pp_ref++;
 	e->env_pml4e = page2kva(p);
 	e->env_cr3 = page2pa(p);
-/////////////
+
 	for(i = PML4(UTOP); i < NPMLENTRIES; i++)
 		e->env_pml4e[i] = boot_pml4e[i];
 
@@ -366,13 +366,14 @@ load_icode(struct Env *e, uint8_t *binary)
 		panic("load_icode: invalid elf\n");
 
 	lcr3(e->env_cr3);
+
 	ph = (struct Proghdr *)(binary + elf->e_phoff);
 	for(i = 0; i < elf->e_phnum; i++) {
 		//if(ph[i].p_type == ELF_PROG_LOAD) {
 		if(ph[i].p_memsz >= ph[i].p_filesz && ph[i].p_type == ELF_PROG_LOAD) {
 			region_alloc(e, (void *)ph[i].p_va, ph[i].p_memsz);
 			memset((void *)ph[i].p_va, 0, ph[i].p_memsz);
-			memcpy((void *)ph[i].p_va, binary + ph[i].p_offset, ph[i].p_filesz);//////////
+			memcpy((void *)ph[i].p_va, binary + ph[i].p_offset, ph[i].p_filesz);
 		}
 	}
 

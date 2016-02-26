@@ -704,13 +704,22 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
 	void *bva;
+	pte_t *ptep;
+	struct PageInfo *pp;
 	perm |= PTE_P;
 
 	for(bva = (void *)va; bva < ROUNDUP(va + len, PGSIZE); bva = ROUNDDOWN(bva, PGSIZE) + PGSIZE) {
-		if((uintptr_t)ROUNDDOWN(bva, PGSIZE) < ULIM) {
+		if((uintptr_t)ROUNDDOWN(bva, PGSIZE) > ULIM) {
 			user_mem_check_addr = (uintptr_t)bva;
 			return -E_FAULT;
 		}
+
+		pp = page_lookup(env->env_pml4e, bva, &ptep);
+		if(pp == NULL || (*ptep & perm) != perm) {
+			user_mem_check_addr = (uintptr_t)bva;
+			return -E_FAULT;
+		}
+
 		if(!(*pml4e_walk(env->env_pml4e, bva, 0) & perm)) {
 			user_mem_check_addr = (uintptr_t)bva;
 			return -E_FAULT;
