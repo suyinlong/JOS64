@@ -51,6 +51,12 @@ i386_init(void)
 #else
 	// Touch all you want.
 	ENV_CREATE(user_hello, ENV_TYPE_USER);
+
+	// Lab 3: Exercise 9 - Your code here
+	//ENV_CREATE(user_buggyhello, ENV_TYPE_USER);
+
+	// Lab 3: Exercise 10 - Your code here
+	//ENV_CREATE(user_evilhello, ENV_TYPE_USER);
 #endif // TEST*
 
 	// We only have one user environment for now, so just run it.
