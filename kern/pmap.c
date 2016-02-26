@@ -322,21 +322,12 @@ x64_vm_init(void)
 	// Permissions: kernel RW, user NONE
 	pdpe_t *pdpe = KADDR(PTE_ADDR(pml4e[1]));
 	pde_t *pgdir = KADDR(PTE_ADDR(pdpe[0]));
-
-	// put this command here will cause a bug
-	//lcr3(boot_cr3);
+	lcr3(boot_cr3);
 
 	check_page_free_list(1);
 	check_page_alloc();
 	page_check();
-
-	// moved to here
-	lcr3(boot_cr3);
-
 	check_page_free_list(0);
-
-	// moved to here
-	lcr3(boot_cr3);
 }
 
 
