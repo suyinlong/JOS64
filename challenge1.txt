@@ -1,2 +1,8 @@
 List challenge problems completed as part of the lab 1 handin, as well
 as the problem number.
+
+Challenge 1.
+
+We have done interpretting ANSI escape sequences Esc[Value;...;Valuem as input in cprintf(). We modified vprintfmt() in printfmt.c. The supported value are 0 (all attributes off), foreground colors 30-37 and background colors 40-47. The colorful text works both on CGA and terminal (if you terminal support ESC sequence).
+
+To test this feature, you can use escape sequences in cprintf(). For example, cprintf("\033[41;36mTest: cyan text red background\033[0m\n"). We also modified the backtrace command, the text "Stack backtrace:" will be shown in cyan text and red background.
