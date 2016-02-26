@@ -263,7 +263,7 @@ x64_vm_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
-	env = boot_alloc(NENV * sizeof(struct Env));
+	envs = boot_alloc(NENV * sizeof(struct Env));
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -494,21 +494,17 @@ pml4e_walk(pml4e_t *pml4e, const void *va, int create)
 		if(pp == NULL)
 			return NULL;
 		pp->pp_ref++;
-		physaddr_t pa = page2pa(pp);
-		*pml4ep = pa | PTE_P | PTE_W | PTE_U;
-		ptep = pdpe_walk((pdpe_t *)pa, va, create);
+		*pml4ep = PADDR(page2kva(pp)) | PTE_P | PTE_W | PTE_U;
+		ptep = pdpe_walk((pdpe_t *)page2kva(pp), va, create);
 		if(ptep == NULL) {
-			page_decref(pa2page(pa));
+			page_decref(pp);
 			*pml4ep = 0;
 		}
 	} else {
-		ptep = pdpe_walk((pdpe_t *)PTE_ADDR(*pml4ep), va, create);
+		ptep = pdpe_walk((pdpe_t *)KADDR(PTE_ADDR(*pml4ep)), va, create);
 	}
 
 	return ptep;
-
-
-
 }
 
 
@@ -529,15 +525,14 @@ pdpe_walk(pdpe_t *pdpe,const void *va,int create){
 		if(pp == NULL)
 			return NULL;
 		pp->pp_ref++;
-		physaddr_t pa = page2pa(pp);
-		*pdpep = pa | PTE_P | PTE_W | PTE_U;
-		ptep = pgdir_walk((pde_t *)pa, va, create);
+		*pdpep = PADDR(page2kva(pp)) | PTE_P | PTE_W | PTE_U;
+		ptep = pgdir_walk((pde_t *)page2kva(pp), va, create);
 		if(ptep == NULL) {
-			page_decref(pa2page(pa));
+			page_decref(pp);
 			*pdpep = 0;
 		}
 	} else {
-		ptep = pgdir_walk((pde_t *)PTE_ADDR(*pdpep), va, create);
+		ptep = pgdir_walk((pde_t *)KADDR(PTE_ADDR(*pdpep)), va, create);
 	}
 
 	return ptep;
@@ -717,8 +712,21 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
-	return 0;
+	void *bva;
+	perm |= PTE_P;
 
+	for(bva = (void *)va; bva < ROUNDUP(va + len, PGSIZE); bva = ROUNDDOWN(bva, PGSIZE) + PGSIZE) {
+		if((uintptr_t)ROUNDDOWN(bva, PGSIZE) < ULIM) {
+			user_mem_check_addr = (uintptr_t)bva;
+			return -E_FAULT;
+		}
+		if(!(*pml4e_walk(env->env_pml4e, bva, 0) & perm)) {
+			user_mem_check_addr = (uintptr_t)bva;
+			return -E_FAULT;
+		}
+	}
+
+	return 0;
 }
 
 //
