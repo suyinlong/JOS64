@@ -304,6 +304,10 @@ x64_vm_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
 	boot_map_region(boot_pml4e, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_P | PTE_W);
+
+	// Note: Since boot_map_region() always give a PTE_P previlledge to a certain
+	//       block allocated, we do not want to un-comment this command to make
+	//       this unbacked block "present". - Xuanyu Yao @ Mar. 1st, 2016
 	//boot_map_region(boot_pml4e, KSTACKTOP - PTSIZE, PTSIZE - KSTKSIZE, PADDR(bootstack + KSTKSIZE), PTE_W);
 
 	//////////////////////////////////////////////////////////////////////

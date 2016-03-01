@@ -53,10 +53,24 @@ i386_init(void)
 	ENV_CREATE(user_hello, ENV_TYPE_USER);
 
 	// Lab 3: Exercise 9 - Your code here
+	//ENV_CREATE(user_divzero, ENV_TYPE_USER);
+	//ENV_CREATE(user_softint, ENV_TYPE_USER);
+	//ENV_CREATE(user_badsegment, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultread, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultreadkernel, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultwrite, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultwritekernel, ENV_TYPE_USER);
+	//ENV_CREATE(user_breakpoint, ENV_TYPE_USER);
+	//ENV_CREATE(user_testbss, ENV_TYPE_USER);
+	//ENV_CREATE(user_hello, ENV_TYPE_USER);
 	//ENV_CREATE(user_buggyhello, ENV_TYPE_USER);
+	//ENV_CREATE(user_buggyhello2, ENV_TYPE_USER);
 
 	// Lab 3: Exercise 10 - Your code here
 	//ENV_CREATE(user_evilhello, ENV_TYPE_USER);
+
+	// Unimplemented until Lab 3 - Xuanyu Yao @Mar. 1st 2016
+	//ENV_CREATE(user_sendpage, ENV_TYPE_USER);
 #endif // TEST*
 
 	// We only have one user environment for now, so just run it.
