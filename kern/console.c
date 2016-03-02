@@ -9,6 +9,7 @@
 #include <kern/console.h>
 #include <kern/picirq.h>
 
+extern int color_flag, color_parsing;
 static void cons_intr(int (*proc)(void));
 static void cons_putc(int c);
 
@@ -163,6 +164,9 @@ cga_init(void)
 static void
 cga_putc(int c)
 {
+	if (color_parsing)
+		return;
+	c |= (color_flag << 8);
 	// if no attribute given, then use black on white
 	if (!(c & ~0xFF))
 		c |= 0x0700;
