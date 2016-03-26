@@ -382,10 +382,7 @@ page_alloc(int alloc_flags)
 	// Fill this function in
 	struct PageInfo *pp = page_free_list;
 	if(pp) {
-		if(pp->pp_link == pp)///////
-			page_free_list = NULL;//////////
-		else///////
-			page_free_list = pp->pp_link;//////////
+		page_free_list = pp->pp_link;
 		pp->pp_link = NULL;
 		memset(page2kva(pp), 0, PGSIZE);
 	}
