@@ -355,7 +355,7 @@ page_init(void)
 	uint64_t kva;
 	struct PageInfo* last = NULL;
 
-	for (i = 1; i < npages; i++) {
+	for (i = npages - 1; i > 0; i--) {
 		if(i >= npages_basemem && i < ((uint64_t)boot_alloc(0) - KERNBASE) / PGSIZE)
 			continue;
 		pages[i].pp_ref = 0;
