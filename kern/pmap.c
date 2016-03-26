@@ -408,9 +408,11 @@ page_init(void)
 	uint64_t kva;
 	struct PageInfo* last = NULL;
 
-	for (i = 1; i < npages; i++) {
+	for (i = npages - 1; i > 0; i--) {
 		if(i >= npages_basemem && i < ((uint64_t)boot_alloc(0) - KERNBASE) / PGSIZE)
 			continue;
+if(page2pa(&pages[i]) == MPENTRY_PADDR)
+continue;
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
@@ -435,10 +437,7 @@ page_alloc(int alloc_flags)
 	// Fill this function in
 	struct PageInfo *pp = page_free_list;
 	if(pp) {
-		if(pp->pp_link == pp)///////
-			page_free_list = NULL;//////////
-		else///////
-			page_free_list = pp->pp_link;//////////
+		page_free_list = pp->pp_link;
 		pp->pp_link = NULL;
 		memset(page2kva(pp), 0, PGSIZE);
 	}
@@ -750,7 +749,14 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	size = ROUNDUP(size, PGSIZE);
+	if(base + size > MMIOLIM) {
+		panic("mmio_map_region(): memory overflow");
+	}
+	boot_map_region(boot_pml4e, base, size, pa, PTE_W | PTE_PCD | PTE_PWT);
+
+	return (void *)base;
+	//panic("mmio_map_region not implemented");
 }
 
 static uintptr_t user_mem_check_addr;
