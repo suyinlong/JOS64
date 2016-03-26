@@ -374,7 +374,7 @@ page_init(void)
 	uint64_t kva;
 	struct PageInfo* last = NULL;
 
-	for (i = 1; i < npages; i++) {
+	for (i = npages - 1; i > 0; i--) {
 		if(i >= npages_basemem && i < ((uint64_t)boot_alloc(0) - KERNBASE) / PGSIZE)
 			continue;
 		pages[i].pp_ref = 0;
@@ -401,10 +401,7 @@ page_alloc(int alloc_flags)
 	// Fill this function in
 	struct PageInfo *pp = page_free_list;
 	if(pp) {
-		if(pp->pp_link == pp)///////
-			page_free_list = NULL;//////////
-		else///////
-			page_free_list = pp->pp_link;//////////
+		page_free_list = pp->pp_link;
 		pp->pp_link = NULL;
 		memset(page2kva(pp), 0, PGSIZE);
 	}
