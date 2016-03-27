@@ -1,3 +1,73 @@
 List challenge problems completed as part of the lab 2 handin, as well
 as the problem number.  If you worked any previous lab challenges and
 submitted them with this lab, list them here, along with the lab number.
+
+
+Lab 2 Challenge 1:
+
+We have used the PTE_PS bit in the page directory entries to achieve
+bigger page size. The PTE_PS flag with 1 in PDE indicates that the PDE
+is the lowest level of the page translation, which makes the page size
+equals to 2^9*2^12 = 2^21 = 2MB. In long-mode when the processor
+encounters a page directory entry with PTE_PS = 1, the virtual address
+translation becomes:
+
++---9----+-------9--------+-------9--------+------21-----+
+|  PML4  | Page Directory | Page Directory |    Offset   |
+| Offset | Pointer Offset |     Offset     | within Page |
++--------+----------------+----------------+-------------+
+
+The virtual and physical address of 2MB page must aligned to 2MB
+(obviously since the lowest 21 bits represent the offset with page).
+In pmap.c we define function page_contiguous_block() and
+page_contiguous_alloc() to get contiguous and aligned block from free
+page list. The 512 small pages in the block remain their pointer field
+pp_link to help the page_free() remove the 2MB page correctly.
+
+We modify the boot_map_region() function to check whether we can alloc
+a 2MB page rather than 512 small pages. And the pgdir_walk() function
+to alloc a 2MB page then set the PDE.PTE_PS to 1.
+
+The check_va2pa() function does not consider the PTE_PS flag, so we
+also modify this function to make it support this feature. Now the
+check_xxxxx() functions works fine under our mix-sized paging.
+
+You can turn on/off this feature by the pte_ps_flag variable in pmap.c.
+To compare the difference, use our monitor tools 'pageinfo'. When the
+PS feature is open, the page number used for translation reduces from
+133 to 7.
+
+PS off: 1 pml4 entries, 1 pdp entries, 130 pd entries and 66064 pt entries.
+        0 1GB pages, 0 2MB pages, 66064 4KB pages (66064 pages in total).
+         133 pages are used for paging translation.
+PS on : 1 pml4 entries, 1 pdp entries, 130 pd entries and 1552 pt entries.
+        0 1GB pages, 126 2MB pages, 1552 4KB pages (1678 pages in total).
+        7 pages are used for paging translation.
+
+
+Lab 2 Challenge 2:
+
+We provide some commands to help debug JOS:
+
+1.  pageinfo
+    This command displays the basic paging information of current (kernel)
+    address space, including location of PML4 table, CR4 register, numbers
+    of table entries and numbers of pages.
+
+2.  showmaps
+    Example: showmaps 0x8000a00000 0x8000c00000
+    This command displays all mappings within the given virtual address
+    range.
+
+3.  setmap
+    Example: setmap 0x8000a00000 0x8000c00000 -set PTE_W -clr PTE_D PTE_PCD
+    This command changes the permission flag of all mappings within the
+    range.
+
+4.  dumpmem
+    Example: dumpmem -v 0x8000a00000 0x8000a01000
+    This commands dumps the contents in the memory range.
+
+You can just type the command in the console to see the instruction.
+
+
