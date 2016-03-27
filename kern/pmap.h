@@ -49,6 +49,8 @@ enum {
 
 void    x64_vm_init();
 
+struct PageInfo *page_contiguous_block(size_t n);
+
 void	page_init(void);
 struct PageInfo * page_alloc(int alloc_flags);
 void	page_free(struct PageInfo *pp);
@@ -90,5 +92,10 @@ pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
 pte_t *pml4e_walk(pml4e_t *pml4e, const void *va, int create);
 
 pde_t *pdpe_walk(pdpe_t *pdpe,const void *va,int create);
+
+#define PDE_PS_FLAG 0x02
+#define PDE_PS_PGNUM (1 << 9)
+#define PDE_PS_PGSIZE (PGSIZE << 9)
+#define PDE_ADDR(pde)	((physaddr_t) (pde) & ~0x1FFFFF)
 
 #endif /* !JOS_KERN_PMAP_H */

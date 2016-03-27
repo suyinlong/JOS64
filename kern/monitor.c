@@ -12,6 +12,7 @@
 #include <kern/dwarf.h>
 #include <kern/kdebug.h>
 #include <kern/dwarf_api.h>
+#include <kern/mmutils.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -27,6 +28,10 @@ static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "backtrace", "Backtrace", mon_backtrace },
+	{ "pageinfo", "Display kernel page information", mm_pageinfo},
+	{ "showmaps", "Display the mappings within the range", mm_showmaps},
+	{ "setmap", "Set the mapping permission", mm_setmap},
+	{ "dumpmem", "Dump memory at virtual or physical address", mm_dumpmem}
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -93,8 +98,6 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 
 	return 0;
 }
-
-
 
 /***** Kernel monitor command interpreter *****/
 

@@ -34,14 +34,15 @@ KERN_SRCFILES :=	kern/entry.S \
 		    kern/libdwarf_rw.c \
 		    kern/libdwarf_frame.c \
 			kern/libdwarf_lineno.c \
-		    kern/elf_rw.c
+		    kern/elf_rw.c \
+		    kern/mmutils.c
 
 
 # Only build files if they exist.
 KERN_SRCFILES := $(wildcard $(KERN_SRCFILES))
 
 # Binary program images to embed within the kernel.
-KERN_BINFILES := 
+KERN_BINFILES :=
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))
 KERN_OBJFILES := $(patsubst %.S, $(OBJDIR)/%.o, $(KERN_OBJFILES))
