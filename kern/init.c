@@ -70,7 +70,7 @@ i386_init(void)
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
-	ENV_CREATE(user_primes, ENV_TYPE_USER);
+	//ENV_CREATE(user_primes, ENV_TYPE_USER);
 
 	// Below are Lab 3 test codes
 	//ENV_CREATE(user_hello, ENV_TYPE_USER);
@@ -91,6 +91,19 @@ i386_init(void)
 
 	// Lab 3: Exercise 10 - Your code here
 	//ENV_CREATE(user_evilhello, ENV_TYPE_USER);
+
+	// Below are Lab 4 test codes
+	//ENV_CREATE(user_yield, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultread, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultdie, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultalloc, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultallocbad, ENV_TYPE_USER);
+	//ENV_CREATE(user_forktree, ENV_TYPE_USER);
+	//ENV_CREATE(user_spin, ENV_TYPE_USER);
+	//ENV_CREATE(user_stresssched, ENV_TYPE_USER);
+	ENV_CREATE(user_sendpage, ENV_TYPE_USER);
+	//ENV_CREATE(user_pingpong, ENV_TYPE_USER);
+	//ENV_CREATE(user_primes, ENV_TYPE_USER);
 
 	// Unimplemented until Lab 3 - Xuanyu Yao @Mar. 1st 2016
 	//ENV_CREATE(user_sendpage, ENV_TYPE_USER);
