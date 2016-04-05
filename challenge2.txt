@@ -44,7 +44,6 @@ PS on : 1 pml4 entries, 1 pdp entries, 130 pd entries and 528 pt entries.
         0 1GB pages, 128 2MB pages, 528 4KB pages (656 pages in total).
         5 pages are used for paging translation.
 
-
 Lab 2 Challenge 2:
 
 We provide some commands to help debug JOS:
