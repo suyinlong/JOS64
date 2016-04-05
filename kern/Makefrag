@@ -14,7 +14,7 @@ KERN_LDFLAGS := $(LDFLAGS) -T kern/kernel.ld -nostdlib --no-gc-sections --print-
 # We also snatch the use of a couple handy source files
 # from the lib directory, to avoid gratuitous code duplication.
 KERN_SRCFILES :=	kern/entry.S \
-            kern/bootstrap.S \
+			kern/bootstrap.S \
 			kern/init.c \
 			kern/console.c \
 			kern/monitor.c \
@@ -31,17 +31,19 @@ KERN_SRCFILES :=	kern/entry.S \
 			lib/printfmt.c \
 			lib/readline.c \
 			lib/string.c  \
-		    kern/libdwarf_rw.c \
-		    kern/libdwarf_frame.c \
+			kern/libdwarf_rw.c \
+			kern/libdwarf_frame.c \
 			kern/libdwarf_lineno.c \
-		    kern/elf_rw.c
+			kern/elf_rw.c \
+			kern/mmutils.c \
+			kern/pmaputils.c
 
 
 # Only build files if they exist.
 KERN_SRCFILES := $(wildcard $(KERN_SRCFILES))
 
 # Binary program images to embed within the kernel.
-KERN_BINFILES := 
+KERN_BINFILES :=
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))
 KERN_OBJFILES := $(patsubst %.S, $(OBJDIR)/%.o, $(KERN_OBJFILES))

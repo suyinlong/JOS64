@@ -207,7 +207,7 @@ struct SystemSegdesc64{
 	unsigned sd_rsv1 : 2;       // Reserved
 	unsigned sd_g : 1;          // Granularity: limit scaled by 4K when set
 	unsigned sd_base_31_24 : 8; // High bits of segment base address
-    uint32_t sd_base_63_32;  
+    uint32_t sd_base_63_32;
     unsigned sd_res1 : 8;
     unsigned sd_clear : 8;
     unsigned sd_res2 : 16;
@@ -294,8 +294,8 @@ struct Gatedesc {
 	unsigned gd_dpl : 2;         // descriptor(meaning new) privilege level
 	unsigned gd_p : 1;           // Present
 	unsigned gd_off_31_16 : 16;  // high bits of offset in segment
-    uint32_t gd_off_32_63;       
-    uint32_t gd_rsv2;                   
+    uint32_t gd_off_32_63;
+    uint32_t gd_rsv2;
 };
 
 #define SETTSS(desc,type,base,lim,dpl)   \
