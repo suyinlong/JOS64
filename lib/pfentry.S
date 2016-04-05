@@ -67,18 +67,33 @@ _pgfault_upcall:
 	// ways as registers become unavailable as scratch space.
 	//
 	// LAB 4: Your code here.
+	movq %rsp, %rax		// backup stack pointer - rsp
+
+	movq 0x88(%rsp), %rbx	// read utf_rip into register
+	movq 0x98(%rsp), %rsp	// read utf_rsp into register
+	pushq %rbx		// push utf_rip into new stack
+	movq %rsp, 0x98(%rax)	// update utf_rsp after push utf_rip
+
+	movq %rax, %rsp		// restore stack pointer - rsp
 
 	// Restore the trap-time registers.  After you do this, you
 	// can no longer modify any general-purpose registers.
 	// LAB 4: Your code here.
+	addq $0x8, %rsp		// skip uint64_t utf_fault_va
+	addq $0x8, %rsp		// skip uint64_t utf_err
+	POPA_			// restore utf_regs
+	addq $0x8, %rsp		// skip uintptr_t utf_rip
 
 	// Restore eflags from the stack.  After you do this, you can
 	// no longer use arithmetic operations or anything else that
 	// modifies eflags.
 	// LAB 4: Your code here.
+	popfq			// restore uint64_t utf_eflags
 
 	// Switch back to the adjusted trap-time stack.
 	// LAB 4: Your code here.
+	popq %rsp		// restore uintptr_t utf_rsp
 
 	// Return to re-execute the instruction that faulted.
 	// LAB 4: Your code here.
+	ret
