@@ -84,7 +84,7 @@ flush_block(void *addr)
 	int r;
 	addr = ROUNDDOWN(addr, PGSIZE);
 
-	if(!va_is_mapped(addr) || !va_is_dirty(addr))
+	if (!va_is_mapped(addr) || !va_is_dirty(addr))
 		return;
 
 	if ((r = ide_write(blockno * BLKSECTS, addr, BLKSECTS)) < 0)

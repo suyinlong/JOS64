@@ -44,7 +44,7 @@ multiboot_read(multiboot_info_t* mbinfo, size_t* basemem, size_t* extmem) {
  	memory_map_t* mmap_list[mbinfo->mmap_length/ (sizeof(memory_map_t))];
 
 	cprintf("\ne820 MEMORY MAP\n");
-	for(i = 0; i < (mbinfo->mmap_length / (sizeof(memory_map_t))); i++) {
+	for (i = 0; i < (mbinfo->mmap_length / (sizeof(memory_map_t))); i++) {
 		memory_map_t* mmap = &mmap_base[i];
 
 		uint64_t addr = APPEND_HILO(mmap->base_addr_high, mmap->base_addr_low);
@@ -53,17 +53,17 @@ multiboot_read(multiboot_info_t* mbinfo, size_t* basemem, size_t* extmem) {
 		cprintf("size: %d, address: 0x%016x, length: 0x%016x, type: %x\n", mmap->size, 
 			addr, len, mmap->type);
 
-		if(mmap->type > 5 || mmap->type < 1)
+		if (mmap->type > 5 || mmap->type < 1)
 			mmap->type = MB_TYPE_RESERVED;
        
 		//Insert into the sorted list
 		int j = 0;
-		for(;j<i;j++) {
+		for ( ; j < i; j++) {
 			memory_map_t* this = mmap_list[j];
 			uint64_t this_addr = APPEND_HILO(this->base_addr_high, this->base_addr_low);
-			if(this_addr > addr) {
+			if (this_addr > addr) {
 				int last = i+1;
-				while(last != j) {
+				while (last != j) {
 					*(mmap_list + last) = *(mmap_list + last - 1);
 					last--;
 				}
@@ -75,7 +75,7 @@ multiboot_read(multiboot_info_t* mbinfo, size_t* basemem, size_t* extmem) {
 	cprintf("\n");
     
 	// Sanitize the list
-	for(i=1;i < (mbinfo->mmap_length / (sizeof(memory_map_t))); i++) {
+	for (i = 1; i < (mbinfo->mmap_length / (sizeof(memory_map_t))); i++) {
 		memory_map_t* prev = mmap_list[i-1];
 		memory_map_t* this = mmap_list[i];
 
@@ -85,13 +85,13 @@ multiboot_read(multiboot_info_t* mbinfo, size_t* basemem, size_t* extmem) {
 		uint64_t this_length = APPEND_HILO(this->length_high, this->length_low);
 
 		// Merge adjacent regions with same type
-		if(prev_addr + prev_length == this_addr && prev->type == this->type) {
+		if (prev_addr + prev_length == this_addr && prev->type == this->type) {
 			this->length_low = (uint32_t)prev_length + this_length;
 			this->length_high = (uint32_t)((prev_length + this_length)>>32);
 			this->base_addr_low = prev->base_addr_low;
 			this->base_addr_high = prev->base_addr_high;
 			mmap_list[i-1] = NULL;
-		} else if(prev_addr + prev_length > this_addr) {
+		} else if (prev_addr + prev_length > this_addr) {
 			//Overlapping regions
 			uint32_t type = restrictive_type(prev->type, this->type);
 			prev->type = type;
@@ -99,11 +99,11 @@ multiboot_read(multiboot_info_t* mbinfo, size_t* basemem, size_t* extmem) {
 		}
 	}
 
-	for(i=0;i < (mbinfo->mmap_length / (sizeof(memory_map_t))); i++) {
+	for (i = 0; i < (mbinfo->mmap_length / (sizeof(memory_map_t))); i++) {
 		memory_map_t* mmap = mmap_list[i];
-		if(mmap) {
-			if(mmap->type == MB_TYPE_USABLE || mmap->type == MB_TYPE_ACPI_RECLM) {
-				if(mmap->base_addr_low < 0x100000 && mmap->base_addr_high == 0)
+		if (mmap) {
+			if (mmap->type == MB_TYPE_USABLE || mmap->type == MB_TYPE_ACPI_RECLM) {
+				if (mmap->base_addr_low < 0x100000 && mmap->base_addr_high == 0)
 					*basemem += APPEND_HILO(mmap->length_high, mmap->length_low);
 				else
 					*extmem += APPEND_HILO(mmap->length_high, mmap->length_low);
@@ -124,7 +124,7 @@ i386_detect_memory(void)
 	uintptr_t* mbp = (uintptr_t*)multiboot_info;
 	multiboot_info_t * mbinfo = (multiboot_info_t*)*mbp;
 	
-	if(mbinfo && (mbinfo->flags & MB_FLAG_MMAP)) {
+	if (mbinfo && (mbinfo->flags & MB_FLAG_MMAP)) {
 		multiboot_read(mbinfo, &basemem, &extmem);
 	} else {
 		basemem = (nvram_read(NVRAM_BASELO) * 1024);
@@ -136,7 +136,7 @@ i386_detect_memory(void)
 	npages_basemem = basemem / PGSIZE;
 	npages_extmem = extmem / PGSIZE;
 	
-	if(nvram_read(NVRAM_EXTLO) == 0xffff) {
+	if (nvram_read(NVRAM_EXTLO) == 0xffff) {
 		// EXTMEM > 16M in blocks of 64k
 		size_t pextmem = nvram_read(NVRAM_EXTGT16LO) * (64 * 1024);
 		npages_extmem = ((16 * 1024 * 1024) + pextmem - (1 * 1024 * 1024)) / PGSIZE;
@@ -167,7 +167,7 @@ i386_detect_memory(void)
 		kern_mem_max, kern_mem_max * PGSIZE / (1024 * 1024));
 	uint64_t max_npages = upages_max < kern_mem_max ? upages_max : kern_mem_max;
 
-	if(npages > max_npages) {
+	if (npages > max_npages) {
 		npages = max_npages - 1024;
 		cprintf("Using only %uK of the available memory.\n", max_npages);
 	}
@@ -220,7 +220,7 @@ boot_alloc(uint32_t n)
 	//
 	// LAB 2: Your code here.
 	result = nextfree;
-	if(n > 0) {
+	if (n > 0) {
 		nextfree += ROUNDUP(n, PGSIZE);
 	}
 
@@ -365,7 +365,7 @@ mem_init_mp(void)
 	size_t i;
 	uintptr_t la = KSTACKTOP - KSTKSIZE;
 
-	for(i = 0; i < NCPU; i++) {
+	for (i = 0; i < NCPU; i++) {
 		boot_map_region(boot_pml4e, la, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_P | PTE_W);
 		la -= KSTKSIZE + KSTKGAP;
 	}
@@ -415,9 +415,9 @@ page_init(void)
 	struct PageInfo* last = NULL;
 
 	for (i = npages - 1; i > 0; i--) {
-		if(page2pa(&pages[i]) >= PADDR(KERNBASE + IOPHYSMEM) && page2pa(&pages[i]) < PADDR(boot_alloc(0)))
+		if (page2pa(&pages[i]) >= PADDR(KERNBASE + IOPHYSMEM) && page2pa(&pages[i]) < PADDR(boot_alloc(0)))
 			continue;
-		if(page2pa(&pages[i]) == MPENTRY_PADDR)
+		if (page2pa(&pages[i]) == MPENTRY_PADDR)
 			continue;
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
@@ -442,7 +442,7 @@ page_alloc(int alloc_flags)
 {
 	// Fill this function in
 	struct PageInfo *pp = page_free_list;
-	if(pp) {
+	if (pp) {
 		page_free_list = pp->pp_link;
 		pp->pp_link = NULL;
 		memset(page2kva(pp), 0, PGSIZE);
@@ -471,8 +471,8 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
-	if(pp) {
-		if(pp->pp_ref || pp->pp_link)
+	if (pp) {
+		if (pp->pp_ref || pp->pp_link)
 			panic("page still in use");
 		pp->pp_link = page_free_list;
 	}
@@ -521,16 +521,16 @@ pml4e_walk(pml4e_t *pml4e, const void *va, int create)
 	pte_t *ptep = NULL;
 	pml4e_t *pml4ep = NULL;
 	pml4ep = pml4e + PML4(va);
-	if(!(*pml4ep & PTE_P)) {
-		if(!create)
+	if (!(*pml4ep & PTE_P)) {
+		if (!create)
 			return NULL;
 		struct PageInfo *pp = page_alloc(ALLOC_ZERO);
-		if(pp == NULL)
+		if (pp == NULL)
 			return NULL;
 		pp->pp_ref++;
 		*pml4ep = PADDR(page2kva(pp)) | PTE_P | PTE_W | PTE_U;
 		ptep = pdpe_walk((pdpe_t *)page2kva(pp), va, create);
-		if(ptep == NULL) {
+		if (ptep == NULL) {
 			page_decref(pp);
 			*pml4ep = 0;
 		}
@@ -552,16 +552,16 @@ pdpe_walk(pdpe_t *pdpe,const void *va,int create)
 	pte_t *ptep = NULL;
 	pdpe_t *pdpep = NULL;
 	pdpep = pdpe + PDPE(va);
-	if(!(*pdpep & PTE_P)) {
-		if(!create)
+	if (!(*pdpep & PTE_P)) {
+		if (!create)
 			return NULL;
 		struct PageInfo *pp = page_alloc(ALLOC_ZERO);
-		if(pp == NULL)
+		if (pp == NULL)
 			return NULL;
 		pp->pp_ref++;
 		*pdpep = PADDR(page2kva(pp)) | PTE_P | PTE_W | PTE_U;
 		ptep = pgdir_walk((pde_t *)page2kva(pp), va, create);
-		if(ptep == NULL) {
+		if (ptep == NULL) {
 			page_decref(pp);
 			*pdpep = 0;
 		}
@@ -583,11 +583,11 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	pte_t *ptep = NULL;
 	pde_t *pgdirp = NULL;
 	pgdirp = pgdir + PDX(va);
-	if(!(*pgdirp & PTE_P)) {
-		if(!create)
+	if (!(*pgdirp & PTE_P)) {
+		if (!create)
 			return NULL;
 		struct PageInfo *pp = page_alloc(ALLOC_ZERO);
-		if(pp == NULL)
+		if (pp == NULL)
 			return NULL;
 		pp->pp_ref++;
 		physaddr_t pa = page2pa(pp);
@@ -614,7 +614,7 @@ boot_map_region(pml4e_t *pml4e, uintptr_t la, size_t size, physaddr_t pa, int pe
 	// Fill this function in
 	size_t i;
 	pte_t * ptep;
-	for(i = 0; i < size; i += PGSIZE) {
+	for (i = 0; i < size; i += PGSIZE) {
 		ptep = pml4e_walk(pml4e, (void *)(la + i), 1);
 		*ptep = PTE_ADDR(pa + i) | perm | PTE_P;
 	}
@@ -652,7 +652,7 @@ page_insert(pml4e_t *pml4e, struct PageInfo *pp, void *va, int perm)
 	// note: modified in lab5, if the correct page is already mapped, reset perm & update tlb only
 	// inspired by Yinlong Su @ April 5th, 2016
 	pte_t *ptep = pml4e_walk(pml4e, va, 0);
-	if(ptep && page2pa(pp) == PTE_ADDR(*ptep)) {
+	if (ptep && page2pa(pp) == PTE_ADDR(*ptep)) {
 		*ptep = PTE_ADDR(*ptep) | perm | PTE_P;
 		tlb_invalidate(pml4e, va);
 		return 0;
@@ -660,7 +660,7 @@ page_insert(pml4e_t *pml4e, struct PageInfo *pp, void *va, int perm)
 
 	page_remove(pml4e, va);
 	ptep = pml4e_walk(pml4e, va, 1);
-	if(ptep == NULL)
+	if (ptep == NULL)
 		return -E_NO_MEM;
 	*ptep = page2pa(pp);
 	*ptep |= perm | PTE_P;
@@ -684,9 +684,9 @@ page_lookup(pml4e_t *pml4e, void *va, pte_t **pte_store)
 {
 	// Fill this function in
 	pte_t *ptep = pml4e_walk(pml4e, va, 0);
-	if(ptep == NULL)
+	if (ptep == NULL)
 		return NULL;
-	if(pte_store)
+	if (pte_store)
 		*pte_store = ptep;
 	return pa2page(PTE_ADDR(*ptep));
 }
@@ -712,7 +712,7 @@ page_remove(pml4e_t *pml4e, void *va)
 	// Fill this function in
 	pte_t *ptep;
 	struct PageInfo *pp = page_lookup(pml4e, va, &ptep);
-	if(pp) {
+	if (pp) {
 		page_decref(pp);
 		*ptep = 0;
 		tlb_invalidate(pml4e, va);
@@ -767,7 +767,7 @@ mmio_map_region(physaddr_t pa, size_t size)
 	uintptr_t region_base = base;
 
 	size = ROUNDUP(size, PGSIZE);
-	if(base + size > MMIOLIM) {
+	if (base + size > MMIOLIM) {
 		panic("mmio_map_region(): memory overflow");
 	}
 	boot_map_region(boot_pml4e, base, size, pa, PTE_W | PTE_PCD | PTE_PWT);
@@ -806,19 +806,19 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 	struct PageInfo *pp;
 	perm |= PTE_P;
 
-	for(bva = (void *)va; bva < ROUNDUP(va + len, PGSIZE); bva = ROUNDDOWN(bva, PGSIZE) + PGSIZE) {
-		if((uintptr_t)ROUNDDOWN(bva, PGSIZE) > ULIM) {
+	for (bva = (void *)va; bva < ROUNDUP(va + len, PGSIZE); bva = ROUNDDOWN(bva, PGSIZE) + PGSIZE) {
+		if ((uintptr_t)ROUNDDOWN(bva, PGSIZE) > ULIM) {
 			user_mem_check_addr = (uintptr_t)bva;
 			return -E_FAULT;
 		}
 
 		pp = page_lookup(env->env_pml4e, bva, &ptep);
-		if(pp == NULL || (*ptep & perm) != perm) {
+		if (pp == NULL || (*ptep & perm) != perm) {
 			user_mem_check_addr = (uintptr_t)bva;
 			return -E_FAULT;
 		}
 
-		if(!(*pml4e_walk(env->env_pml4e, bva, 0) & perm)) {
+		if (!(*pml4e_walk(env->env_pml4e, bva, 0) & perm)) {
 			user_mem_check_addr = (uintptr_t)bva;
 			return -E_FAULT;
 		}
@@ -1074,7 +1074,7 @@ check_va2pa(pml4e_t *pml4e, uintptr_t va)
 	// cprintf("%x", va);
 	pml4e = &pml4e[PML4(va)];
 	// cprintf(" %x %x " , PML4(va), *pml4e);
-	if(!(*pml4e & PTE_P))
+	if (!(*pml4e & PTE_P))
 		return ~0;
 	pdpe = (pdpe_t *) KADDR(PTE_ADDR(*pml4e));
 	// cprintf(" %x %x " , pdpe, *pdpe);
@@ -1252,7 +1252,7 @@ page_check(void)
 	pdpe = KADDR(PTE_ADDR(boot_pml4e[0]));
 	pde  = KADDR(PTE_ADDR(pdpe[0]));
 	ptep  = KADDR(PTE_ADDR(pde[0]));
-	for(i=0; i<NPTENTRIES; i++)
+	for (i=0; i<NPTENTRIES; i++)
 		assert((ptep[i] & PTE_P) == 0);
 	boot_pml4e[0] = 0;
 

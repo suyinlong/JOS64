@@ -32,17 +32,17 @@ sched_yield(void)
 	int i, count;
 
 	idle = thiscpu->cpu_env;
-	if(idle != NULL)
+	if (idle != NULL)
 		i = ENVX(idle->env_id);
-	for(count = 0; count < NENV; count++) {
+	for (count = 0; count < NENV; count++) {
 		i = (i + 1) % NENV;
-		if(envs[i].env_status == ENV_RUNNABLE) {
+		if (envs[i].env_status == ENV_RUNNABLE) {
 			env_run(&envs[i]);
 			return;
 		}
 	}
 
-	if(idle && idle->env_status == ENV_RUNNING)
+	if (idle && idle->env_status == ENV_RUNNING)
 		env_run(idle);
 
 	// sched_halt never returns

@@ -403,7 +403,7 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
-	if((tf->tf_cs & 3) == 0)
+	if ((tf->tf_cs & 3) == 0)
 		panic("page_fault: kernel-mode");
 
 	// We've already handled kernel-mode exceptions, so if we get here,
@@ -439,12 +439,12 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
-	if(curenv->env_pgfault_upcall != NULL) {
+	if (curenv->env_pgfault_upcall != NULL) {
 		struct UTrapframe *utf;
 
 		// allocate memory for another trap-frame
 		utf = (struct UTrapframe *)(UXSTACKTOP - sizeof(struct UTrapframe));
-		if(tf->tf_rsp >= UXSTACKTOP - PGSIZE && tf->tf_rsp < UXSTACKTOP)
+		if (tf->tf_rsp >= UXSTACKTOP - PGSIZE && tf->tf_rsp < UXSTACKTOP)
 			utf = (struct UTrapframe *)(tf->tf_rsp - sizeof(struct UTrapframe) - 8);
 		user_mem_assert(curenv, utf, sizeof(struct UTrapframe), PTE_U | PTE_W);
 

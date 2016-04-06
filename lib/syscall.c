@@ -31,7 +31,7 @@ syscall(int num, int check, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 		  "S" (a5)
 		: "cc", "memory");
 
-	if(check && ret > 0)
+	if (check && ret > 0)
 		panic("syscall %d returned %d (> 0)", num, ret);
 
 	return ret;

@@ -34,8 +34,8 @@ umain(int argc, char **argv)
 		// fd and mapping the pipe structure, we'll have the same
 		// ref counts, still a no-no.
 		//
-		for (i=0; i<max; i++) {
-			if(pipeisclosed(p[0])){
+		for (i = 0; i < max; i++) {
+			if (pipeisclosed(p[0])){
 				cprintf("RACE: pipe appears closed\n");
 				exit();
 			}

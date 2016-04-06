@@ -64,7 +64,7 @@ dwarf_get_fde_at_pc(Dwarf_Debug dbg, Dwarf_Addr pc,
         if (ret_fde == NULL)
                 return (DW_DLV_ERROR);
 
-        while(dbg->curr_off_eh < dbg->dbg_eh_size) {
+        while (dbg->curr_off_eh < dbg->dbg_eh_size) {
                 if (_dwarf_get_next_fde(dbg, true, error, fde) < 0)
                         return DW_DLV_NO_ENTRY;
                 if (pc >= fde->fde_initloc && pc < fde->fde_initloc +
@@ -130,7 +130,7 @@ _dwarf_frame_run_inst(Dwarf_Debug dbg, Dwarf_Regtable3 *rt, uint8_t *insts,
                         ret = DW_DLE_DF_REG_NUM_TOO_HIGH;               \
                         goto program_done;                              \
                 }                                                       \
-        } while(0)
+        } while (0)
 
         ret = DW_DLE_NONE;
         init_rt = saved_rt = NULL;

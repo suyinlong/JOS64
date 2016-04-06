@@ -116,7 +116,7 @@ again:
 
 runit:
 	// Return immediately if command line was empty.
-	if(argc == 0) {
+	if (argc == 0) {
 		if (debug)
 			cprintf("EMPTY COMMAND\n");
 		return;
@@ -124,11 +124,11 @@ runit:
 
 	//Search in all the PATH's for the binary
 	struct Stat st;
-	for(i = 0; i < npaths; i++) {
+	for (i = 0; i < npaths; i++) {
 		strcpy(argv0buf, PATH[i]);
 		strcat(argv0buf, argv[0]);
 		r = stat(argv0buf, &st);
-		if(r == 0) {
+		if (r == 0) {
 			argv[0] = argv0buf;
 			break; 
 		}

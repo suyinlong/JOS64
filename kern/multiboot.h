@@ -100,13 +100,13 @@
  } memory_map_t;
 
 uint32_t restrictive_type(uint32_t t1, uint32_t t2) {
-  if(t1==MB_TYPE_BAD || t2==MB_TYPE_BAD)
+  if (t1==MB_TYPE_BAD || t2==MB_TYPE_BAD)
     return MB_TYPE_BAD;
-  else if(t1==MB_TYPE_ACPI_NVS || t2==MB_TYPE_ACPI_NVS)
+  else if (t1==MB_TYPE_ACPI_NVS || t2==MB_TYPE_ACPI_NVS)
     return MB_TYPE_ACPI_NVS;
-  else if(t1==MB_TYPE_RESERVED || t2==MB_TYPE_RESERVED)
+  else if (t1==MB_TYPE_RESERVED || t2==MB_TYPE_RESERVED)
     return MB_TYPE_RESERVED;
-  else if(t1==MB_TYPE_ACPI_RECLM || t2==MB_TYPE_ACPI_RECLM)
+  else if (t1==MB_TYPE_ACPI_RECLM || t2==MB_TYPE_ACPI_RECLM)
     return MB_TYPE_ACPI_RECLM;
 
   return MB_TYPE_USABLE;
