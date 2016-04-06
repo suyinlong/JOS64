@@ -65,6 +65,13 @@ duppage(envid_t envid, unsigned pn)
 	// LAB 4: Your code here.
 	void *addr = (void *)((uintptr_t)pn * PGSIZE);
 
+	// note: modified for LAB 5, supporting PTE_SHARE
+	if(uvpt[pn] & PTE_SHARE) {
+		if((r = sys_page_map(0, addr, envid, addr, (uvpt[pn] & PTE_SYSCALL))) < 0)
+			return r;
+		return 0;
+	}
+
 	// note: here we must set ~PTE_W and PTE_COW such that parent process can get correct pid
 	if((r = sys_page_map(0, addr, envid, addr, (uvpt[pn] & PTE_SYSCALL & ~PTE_W) | PTE_COW)) < 0)
 		return r;

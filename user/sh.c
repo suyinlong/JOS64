@@ -121,18 +121,18 @@ runit:
 			cprintf("EMPTY COMMAND\n");
 		return;
 	}
-    
-    //Search in all the PATH's for the binary
-    struct Stat st;
-    for(i=0;i<npaths;i++) {
-        strcpy(argv0buf, PATH[i]);
-        strcat(argv0buf, argv[0]);
-        r = stat(argv0buf, &st);
-        if(r==0) {
-           argv[0] = argv0buf;
-           break; 
-        }
-    }
+
+	//Search in all the PATH's for the binary
+	struct Stat st;
+	for(i = 0; i < npaths; i++) {
+		strcpy(argv0buf, PATH[i]);
+		strcat(argv0buf, argv[0]);
+		r = stat(argv0buf, &st);
+		if(r == 0) {
+			argv[0] = argv0buf;
+			break; 
+		}
+	}
 
 	// Clean up command line.
 	// Read all commands from the filesystem: add an initial '/' to

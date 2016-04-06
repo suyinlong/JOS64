@@ -649,8 +649,17 @@ int
 page_insert(pml4e_t *pml4e, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	// note: modified in lab5, if the correct page is already mapped, reset perm & update tlb only
+	// inspired by Yinlong Su @ April 5th, 2016
+	pte_t *ptep = pml4e_walk(pml4e, va, 0);
+	if(ptep && page2pa(pp) == PTE_ADDR(*ptep)) {
+		*ptep = PTE_ADDR(*ptep) | perm | PTE_P;
+		tlb_invalidate(pml4e, va);
+		return 0;
+	}
+
 	page_remove(pml4e, va);
-	pte_t *ptep = pml4e_walk(pml4e, va, 1);
+	ptep = pml4e_walk(pml4e, va, 1);
 	if(ptep == NULL)
 		return -E_NO_MEM;
 	*ptep = page2pa(pp);
