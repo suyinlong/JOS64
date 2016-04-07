@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-01 09:08:45
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-04 21:39:16
+* @Last Modified time: 2016-04-06 21:04:06
 */
 
 #include <inc/stdio.h>
@@ -16,13 +16,14 @@
 #include <kern/pmaputils.h>
 
 int mm_showmaps(uint64_t start, uint64_t end, int pflag);
+int mm_vmap();
 
-extern size_t npages;          // Amount of physical memory (in pages)
-extern size_t npages_basemem;   // Amount of base memory (in pages)
-extern struct PageInfo *pages;     // Physical page state array
+extern size_t npages;                   // Amount of physical memory (in pages)
+extern size_t npages_basemem;           // Amount of base memory (in pages)
+extern struct PageInfo *pages;          // Physical page state array
 extern struct PageInfo *page_free_list; // Free list of physical pages
 
-struct VirtualMap *vms, *vms_end;
+struct VirtualMap *vms, *vms_end;       // Virtual map start & end address
 
 // --------------------------------------------------------------
 // For challenge 1, 4 of lab 2
@@ -161,7 +162,7 @@ void page_free_list_reorder() {
 //       PDE_PS_PGSIZE (if the block > 2MB). But it is only when the
 //       addresses are aligned to PDE_PS_PGSIZE that the 2MB page
 //       will be alloced
-void update_pages(size_t p, void *va, void *pa, int flag) {
+void page_update(size_t p, void *va, void *pa, int flag) {
     pte_t *ptep;
     pde_t *pdep;
     pml4e_t* pml4e = KADDR(rcr3());
@@ -217,7 +218,7 @@ void *c_malloc(size_t n) {
     void *va = vm_block(nn), *pa = (void *)page2pa(pp);
 
     // map the virtual address to physical address in page table
-    update_pages(p, va, pa, 1);
+    page_update(p, va, pa, 1);
 
     // save the mapping in our VirtualMap
     vm_insert(va, va + nn, pa, VME_U);
@@ -271,13 +272,13 @@ int c_split(void *va, int split, void **ptr) {
     struct VirtualMap *vme = vm_lookup(va);
     // no entry match, return
     if (vme == vms_end || vme->start != va)
-        return -1;
+        return -2;
     // split number too big
     if ((vme->end - vme->start) / PGSIZE < split)
-        return -1;
+        return -3;
     // try to split a kernel mapping
     if (!(vme->perm & VME_U))
-        return -1;
+        return -4;
 
     int i;
     pml4e_t* pml4e = KADDR(rcr3());
@@ -289,7 +290,7 @@ int c_split(void *va, int split, void **ptr) {
         // first free the block, then remap it with only 4KB pages
         //cprintf("oversize split\n");
         c_free(va);
-        update_pages(block_size / PGSIZE, va, pa, 0);
+        page_update(block_size / PGSIZE, va, pa, 0);
     }
     // remove the old mapping in VirtualMap
     vm_delete(va, VME_U);
@@ -312,10 +313,8 @@ int c_split(void *va, int split, void **ptr) {
 // Check: the pointers should be valid (in VirtualMap)
 //        the pointer address spaces is contigous
 //
-// Note: User should make sure <ptr> can hold <split> pointers.
-//       When split a block bigger than or equal to 2MB into
-//       pieces that smaller than 2MB, the pages of this block
-//       will be disassembled to 4KB normal pages
+// Note: If coalesce blocks to bigger than or equal to 2MB,
+//       this function will try to use 2MB page when possible.
 void *c_coalesce(int coalesce, void **ptr) {
     // coalesce too small
     if (coalesce < 2)
@@ -342,7 +341,7 @@ void *c_coalesce(int coalesce, void **ptr) {
     for (i = 0; i < coalesce; i++)
         c_free(ptr[i]);
     // realloc the new block, try to use 2MB pages
-    update_pages((va - base_va) / PGSIZE, base_va, base_pa, 1);
+    page_update((va - base_va) / PGSIZE, base_va, base_pa, 1);
     // insert the new mapping
     vm_insert(base_va, va, base_pa, VME_U);
     return ptr[0];
@@ -428,7 +427,7 @@ int vm_delete(void *start, uint8_t perm) {
 // --------------------------------------------------------------
 // Find a free and contigous virtual space of <n> bytes in VirtualMap
 void *vm_block(size_t n) {
-    void *va = (void *)ROUNDUP(VM_U_START, BLOCK_ALIGN(n / PGSIZE));
+    void *va = (void *)VM_U_START;
     struct VirtualMap *vme = vm_lookup(va);
 
     if (vme == vms_end || vme->start >= va + n)
@@ -523,7 +522,6 @@ void check_c_utils() {
     // check the validity and continuousness
     vme1 = vm_lookup(cp3);
     assert(vme1 != vms_end && vme1->start == cp3 && vme1->end == vme1->start + PGSIZE * 8);
-
 
     // now split 8MB into 8 pieces
     // since the unit size will be 1MB, the 2MB pages will be disassembled into 4KB pages

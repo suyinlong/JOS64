@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-04 21:56:51
+* @Last Modified time: 2016-04-06 21:01:34
 */
 
 #include <inc/stdio.h>
@@ -192,7 +192,7 @@ int mm_dumpmem(uint64_t start, uint64_t end) {
 int mm_vmap() {
     int count = 0;
     struct VirtualMap *vme = vms;
-    cprintf("Virtual Map\n");
+    cprintf("Virtual Map:\n");
     while (vme != vms_end) {
         count++;
         cprintf("  # Start: 0x%016x End: %016x PAddr: %016x Perm: %d\n", vme->start, vme->end, vme->addr, vme->perm);
