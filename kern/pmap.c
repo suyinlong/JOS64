@@ -17,6 +17,13 @@ extern uint64_t pml4phys;
 #define BOOT_PAGE_TABLE_START ((uint64_t) KADDR((uint64_t) &pml4phys))
 #define BOOT_PAGE_TABLE_END   ((uint64_t) KADDR((uint64_t) (&pml4phys) + 5*PGSIZE))
 
+// For challenge problems of lab 2, remove the static attribute
+// of npages_basemem and page_free_list in order to use these
+// extern variables in extension pmaputils
+//                                * First modified @ April 1st
+//                                * Merged         @ April 6th
+//                                * By Yinlong Su
+
 // These variables are set by i386_detect_memory()
 size_t npages;			// Amount of physical memory (in pages)
 size_t npages_basemem;	// Amount of base memory (in pages)
@@ -228,6 +235,11 @@ boot_alloc(uint32_t n)
 	return result;
 }
 
+// create a function pointer
+// used by our extension pmaputils
+//                                * First modified @ April 1st
+//                                * Merged         @ April 6th
+//                                * By Yinlong Su
 funcPtr ptr_boot_alloc = &boot_alloc;
 
 // Set up a four-level page table:
