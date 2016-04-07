@@ -35,7 +35,9 @@ KERN_SRCFILES :=	kern/entry.S \
 			kern/libdwarf_frame.c \
 			kern/libdwarf_lineno.c \
 			kern/libdwarf_loc.c \
-			kern/elf_rw.c
+			kern/elf_rw.c \
+			kern/mmutils.c \
+			kern/pmaputils.c
 
 
 # Source files for LAB4
