@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-01 09:08:45
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-06 23:19:01
+* @Last Modified time: 2016-04-06 23:35:29
 */
 
 #include <inc/stdio.h>
@@ -24,6 +24,8 @@ extern size_t npages;                   // Amount of physical memory (in pages)
 extern size_t npages_basemem;           // Amount of base memory (in pages)
 extern struct PageInfo *pages;          // Physical page state array
 extern struct PageInfo *page_free_list; // Free list of physical pages
+
+extern struct VirtualMap *boot_vms;
 
 // --------------------------------------------------------------
 // For challenge 1, 4 of lab 2
@@ -354,7 +356,7 @@ void *c_coalesce(int coalesce, void **ptr) {
 // vms points to the base address of VirtualMap
 // vms_end points to the end of VirtualMap
 void vm_init() {
-    vms = (void *)pages + npages * sizeof(struct PageInfo);
+    vms = boot_vms;
     memset(vms, 0, VM_NUMBER * sizeof(struct VirtualMap));
     vms_end = vms;
 }

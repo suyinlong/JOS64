@@ -17,6 +17,7 @@ extern uint64_t pml4phys;
 #define BOOT_PAGE_TABLE_START ((uint64_t) KADDR((uint64_t) &pml4phys))
 #define BOOT_PAGE_TABLE_END   ((uint64_t) KADDR((uint64_t) (&pml4phys) + 5*PGSIZE))
 
+// ************************************************************
 // For challenge problems of lab 2, remove the static attribute
 // of npages_basemem and page_free_list in order to use these
 // extern variables in extension pmaputils
@@ -33,6 +34,15 @@ pml4e_t *boot_pml4e;		// Kernel's initial page directory
 physaddr_t boot_cr3;		// Physical address of boot time page directory
 struct PageInfo *pages;		// Physical page state array
 struct PageInfo *page_free_list;	// Free list of physical pages
+
+// ************************************************************
+// For challenge problem 1 & 4 of lab2, those flag indicate the
+// on/off status of features
+//
+// pte_ps_flag  : large page size using PTE_PS flag
+// c_block_flag : contigous pages malloc/free support
+int pte_ps_flag = 1, c_block_flag = 0;
+struct VirtualMap *boot_vms; // Virtual Map array
 
 // --------------------------------------------------------------
 // Detect machine's physical memory setup.
@@ -235,6 +245,7 @@ boot_alloc(uint32_t n)
 	return result;
 }
 
+// ************************************************************
 // create a function pointer
 // used by our extension pmaputils
 //                                * First modified @ April 1st
@@ -277,6 +288,14 @@ x64_vm_init(void)
 	// Your code goes here:
 	pages = boot_alloc(npages * sizeof(struct PageInfo));
 
+	// ************************************************************
+	// For challenge problem 4 of lab2, we alloc an array of VM_NUMBER
+	// 'struct VirtualMap' and store it in 'boot_vms'
+	// Our extension pmaputils use this array to keep track of virtual
+	// mappings as well as allocated blocks
+	if (c_block_flag)
+		boot_vms = boot_alloc(VM_NUMBER * sizeof(struct VirtualMap));
+
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
@@ -288,6 +307,12 @@ x64_vm_init(void)
 	// memory management will go through the page_* functions. In
 	// particular, we can now map memory using boot_map_region or page_insert
 	page_init();
+
+	// ************************************************************
+	// For challenge problem 4 of lab2
+	// Now we initial the Virtual Map
+	if (c_block_flag)
+		vm_init();
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -352,6 +377,12 @@ x64_vm_init(void)
 	check_page_alloc();
 	page_check();
 	check_page_free_list(0);
+
+	// ************************************************************
+	// For challenge problem 4 of lab2
+	// use check_c_utils() to test the contigous block functions
+	if (c_block_flag)
+		check_c_utils();
 }
 
 
@@ -486,10 +517,18 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+	// *******************************
+	// For challenge problem 1 & 4 of lab2:
+	// change page_free to remove all pages in the linked list
+	// this will correctly free a 2MB page or a whole block
 	if (pp) {
-		if (pp->pp_ref || pp->pp_link)
+		if (pp->pp_ref)
 			panic("page still in use");
-		pp->pp_link = page_free_list;
+		// Free one page or a linked list
+		struct PageInfo *current = pp;
+		while (current->pp_link)
+			current = current->pp_link;
+		current->pp_link = page_free_list;
 	}
 	page_free_list = pp;
 }
@@ -501,9 +540,25 @@ page_free(struct PageInfo *pp)
 void
 page_decref(struct PageInfo* pp)
 {
-	if (--pp->pp_ref == 0)
+	// *******************************
+	// For challenge problem 1 & 4 of lab2:
+	// decref a linked list
+	struct PageInfo *current = pp;
+	while (current) {
+		current->pp_ref--;
+		current = current->pp_link;
+	}
+	if (pp->pp_ref == 0)
 		page_free(pp);
 }
+
+// *******************************
+// change all pp->pp_ref++
+//         to page_incref(pp, 1)
+// page_incref is our function in pmaputils.c
+//
+// *******************************
+
 // Given a pml4 pointer, pml4e_walk returns a pointer
 // to the page table entry (PTE) for linear address 'va'
 // This requires walking the 4-level page table structure
@@ -542,7 +597,7 @@ pml4e_walk(pml4e_t *pml4e, const void *va, int create)
 		struct PageInfo *pp = page_alloc(ALLOC_ZERO);
 		if (pp == NULL)
 			return NULL;
-		pp->pp_ref++;
+		page_incref(pp, 1);
 		*pml4ep = PADDR(page2kva(pp)) | PTE_P | PTE_W | PTE_U;
 		ptep = pdpe_walk((pdpe_t *)page2kva(pp), va, create);
 		if (ptep == NULL) {
@@ -573,7 +628,7 @@ pdpe_walk(pdpe_t *pdpe,const void *va,int create)
 		struct PageInfo *pp = page_alloc(ALLOC_ZERO);
 		if (pp == NULL)
 			return NULL;
-		pp->pp_ref++;
+		page_incref(pp, 1);
 		*pdpep = PADDR(page2kva(pp)) | PTE_P | PTE_W | PTE_U;
 		ptep = pgdir_walk((pde_t *)page2kva(pp), va, create);
 		if (ptep == NULL) {
@@ -591,6 +646,12 @@ pdpe_walk(pdpe_t *pdpe,const void *va,int create)
 // The programming logic and the hints are the same as pml4e_walk
 // and pdpe_walk.
 
+// *******************************
+// For challenge problem 1 & 4 of lab2:
+// we modify this function to support 2MB page
+//                                   @ first create   Mar 31st
+//                                   @ merged to lab6 Apr 6th
+//                                   @ by Yinlong Su
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
@@ -601,14 +662,29 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	if (!(*pgdirp & PTE_P)) {
 		if (!create)
 			return NULL;
-		struct PageInfo *pp = page_alloc(ALLOC_ZERO);
-		if (pp == NULL)
-			return NULL;
-		pp->pp_ref++;
-		physaddr_t pa = page2pa(pp);
-		*pgdirp = pa | PTE_P | PTE_W | PTE_U;
+		if (pte_ps_flag && create & PDE_PS_FLAG) {
+			// create a 2MB page
+			struct PageInfo *pp = page_contiguous_block(PDE_PS_PGNUM);
+			if (pp == NULL)
+				return NULL;
+			page_incref(pp, PDE_PS_PGNUM);
+			physaddr_t pa = page2pa(pp);
+			*pgdirp = pa | PTE_P | PTE_PS;
+		}
+		else {
+			struct PageInfo *pp = page_alloc(ALLOC_ZERO);
+			if (pp == NULL)
+				return NULL;
+			page_incref(pp, 1);
+			physaddr_t pa = page2pa(pp);
+			*pgdirp = pa | PTE_P | PTE_W | PTE_U;
+		}
 	}
-
+	// *******************************
+	// if pte_ps_flag == 1 and the page directory entry.ps == 1
+	// return pgdirp directly
+	if (pte_ps_flag && *pgdirp & PTE_PS)
+		return pgdirp;
 	ptep = &((pte_t *)KADDR(PTE_ADDR(*pgdirp)))[PTX(va)];
 	return ptep;
 }
@@ -623,16 +699,42 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 // mapped pages.
 //
 // Hint: the TA solution uses pml4e_walk
+
+// *******************************
+// For challenge problem 1 & 4 of lab2:
+// modify this function to use 2MB pages
 static void
 boot_map_region(pml4e_t *pml4e, uintptr_t la, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
 	size_t i;
 	pte_t * ptep;
+	pde_t * pdep;
 	for (i = 0; i < size; i += PGSIZE) {
-		ptep = pml4e_walk(pml4e, (void *)(la + i), 1);
-		*ptep = PTE_ADDR(pa + i) | perm | PTE_P;
+
+		// We only alloc 2MB page when:
+		// 1. pte_ps_flag == 1, this is the option of our PTE_PS function
+		// 2. current (la + i) is aligned to PDE_PS_PGSIZE (aka 2MB)
+		// 3. current (pa + i) is aligned to PDE_PS_PGSIZE (aka 2MB)
+		// 4. remaining alloc size >= 2MB
+		// 5. there is a contiguous block of 512 pages
+		if (pte_ps_flag
+			&& (la + i) == ROUNDDOWN(la + i, PDE_PS_PGSIZE)
+			&& (pa + i) == ROUNDDOWN(pa + i, PDE_PS_PGSIZE)
+			&& (i + PDE_PS_PGSIZE) <= size
+			&& page_contiguous_block(PDE_PS_PGNUM)) {
+			pdep = pml4e_walk(pml4e, (void *)(la + i), 1 | PDE_PS_FLAG);
+			*pdep = PDE_ADDR(pa + i) | perm | PTE_P | PTE_PS;
+			i += PDE_PS_PGSIZE - PGSIZE;
+		}
+		else {
+			ptep = pml4e_walk(pml4e, (void *)(la + i), 1);
+			*ptep = PTE_ADDR(pa + i) | perm | PTE_P;
+		}
 	}
+	// insert the mapping in our structure VirtualMap
+	if (c_block_flag)
+		vm_insert((void *)la, (void *)la + size, (void *)pa, 0);
 }
 
 //
@@ -679,7 +781,10 @@ page_insert(pml4e_t *pml4e, struct PageInfo *pp, void *va, int perm)
 		return -E_NO_MEM;
 	*ptep = page2pa(pp);
 	*ptep |= perm | PTE_P;
-	pp->pp_ref++;
+	page_incref(pp, 1);
+	// insert the mapping in our structure VirtualMap
+	if (c_block_flag)
+		vm_insert(va, va + PGSIZE, (void *)page2pa(pp), 0);
 	return 0;
 }
 
@@ -730,6 +835,9 @@ page_remove(pml4e_t *pml4e, void *va)
 	if (pp) {
 		page_decref(pp);
 		*ptep = 0;
+		// remove the mapping from our structure VirtualMap
+		if (c_block_flag)
+			vm_delete(va, 0);
 		tlb_invalidate(pml4e, va);
 	}
 }
@@ -1100,6 +1208,15 @@ check_va2pa(pml4e_t *pml4e, uintptr_t va)
 	pde = &pde[PDX(va)];
 	if (!(*pde & PTE_P))
 		return ~0;
+
+// ********************************************************
+// For our 2MB page size support
+// need to modify the function to correctly return the
+// expected value
+// ********************************************************
+	if (*pde & PTE_PS)
+		return PTE_ADDR(*pde) + (PTX(va) << PTXSHIFT);
+
 	pte = (pte_t*) KADDR(PTE_ADDR(*pde));
 	// cprintf(" %x %x " , pte, *pte);
 	if (!(pte[PTX(va)] & PTE_P))
