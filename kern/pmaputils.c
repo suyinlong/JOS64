@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-01 09:08:45
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-06 23:35:29
+* @Last Modified time: 2016-04-07 12:54:29
 */
 
 #include <inc/stdio.h>
@@ -16,16 +16,16 @@
 #include <kern/pmaputils.h>
 
 int mm_showmaps(uint64_t start, uint64_t end, int pflag);
-int mm_vmap();
+int mm_binfo(int pflag);
 
-struct VirtualMap *vms, *vms_end;       // Virtual map start & end address
+struct BlockInfo *bis = NULL, *bis_end = NULL;       // Block Info start & end address
 
 extern size_t npages;                   // Amount of physical memory (in pages)
 extern size_t npages_basemem;           // Amount of base memory (in pages)
 extern struct PageInfo *pages;          // Physical page state array
 extern struct PageInfo *page_free_list; // Free list of physical pages
 
-extern struct VirtualMap *boot_vms;
+extern struct BlockInfo *boot_bis;
 
 // --------------------------------------------------------------
 // For challenge 1, 4 of lab 2
@@ -80,30 +80,32 @@ struct PageInfo *page_contiguous_block(size_t p) {
 // --------------------------------------------------------------
 // For challenge 4 of lab 2
 // --------------------------------------------------------------
-// Remove <p> contiguous pages from page_free_list, starting from pp
+// Remove <p> contiguous pages from page_free_list, starting from <pp>
+// Return the next page after the <p> contiguous pages
 // Typically, p = 512 (2MB)
 // When a 2MB page is alloced, 512 pages should be removed from
 // page_free_list. We keep the pp_link in the removed entries so
 // that the page_incref() page_decref() can change the reference #
 // in the same block.
-struct PageInfo *page_contiguous_alloc(size_t p) {
-    struct PageInfo *pp = page_contiguous_block(p);
+struct PageInfo *page_contiguous_alloc(struct PageInfo *pp, size_t p) {
     int k = 1;
+    struct PageInfo *prev, *current, *before, *after = NULL;
     //cprintf("p_c_a: p %d pp %x pp next %x page_free_list %x", p, pp, pp->pp_link, page_free_list);
     if (pp) {
         // remove p entries from page_free_list, starting from pp
-        struct PageInfo *prev = NULL, *current = page_free_list;
+        prev = NULL;
+        current = page_free_list;
         while (current != pp) {
             prev = current;
             current = current->pp_link;
         }
-        struct PageInfo *before = prev;
+        before = prev;
         while (k < p) {
             prev = current;
             current = current->pp_link;
             k++;
         }
-        struct PageInfo *after = current->pp_link;
+        after = current->pp_link;
         current->pp_link = NULL;
         if (before)
             before->pp_link = after;
@@ -111,7 +113,7 @@ struct PageInfo *page_contiguous_alloc(size_t p) {
             page_free_list = after;
     }
     //cprintf(" -> %x\n", page_free_list);
-    return pp;
+    return after;
 }
 
 // --------------------------------------------------------------
@@ -135,12 +137,17 @@ void page_incref(struct PageInfo* pp, size_t p)
 // The page free list may be unordered. When we need to alloc
 // a contigous page bigger than 4KB, reorder the free list first
 // then find the contigous block
+//
+// Apr 7th: Replace the old version of page_init()
+//          provided by Xunyu Yao
 void page_free_list_reorder() {
     size_t i;
     struct PageInfo* last = NULL;
     page_free_list = NULL;
     for (i = npages - 1; i > 0; i--) {
-        if (i >= npages_basemem && i < ((uint64_t)ptr_boot_alloc(0) - KERNBASE) / PGSIZE)
+        if (page2pa(&pages[i]) >= PADDR(KERNBASE + IOPHYSMEM) && page2pa(&pages[i]) < PADDR(ptr_boot_alloc(0)))
+            continue;
+        if (page2pa(&pages[i]) == MPENTRY_PADDR)
             continue;
         if (pages[i].pp_ref)
             continue;
@@ -195,7 +202,7 @@ void page_update(size_t p, void *va, void *pa, int flag) {
 // Malloc a physical contigous block of <n> bytes
 //
 // The length will be round up to 2^k
-void *c_malloc(size_t n) {
+void *b_malloc(size_t n) {
     struct PageInfo *pp;
     size_t nn = PGSIZE, p = 1;
 
@@ -211,19 +218,27 @@ void *c_malloc(size_t n) {
     pp = page_contiguous_block(p);
     if (!pp)
         return NULL;
-    page_contiguous_alloc(p);
-    page_incref(pp, p);
+
+    // contiguous alloc the pages
+    struct PageInfo *current = pp, *next = NULL;
+    size_t c = p;
+    while (c > 0) {
+        next = page_contiguous_alloc(current, BLOCK_PGNUM(c));
+        page_incref(current, BLOCK_PGNUM(c));
+        c -= BLOCK_PGNUM(c);
+        current = next;
+    }
 
     //cprintf("c_malloc: n: %d nn: %d p: %d pp: %x\n", n, nn, p, pp);
 
     // find free virtual address space
-    void *va = vm_block(nn), *pa = (void *)page2pa(pp);
+    void *va = bi_block(nn), *pa = (void *)page2pa(pp);
 
     // map the virtual address to physical address in page table
     page_update(p, va, pa, 1);
 
-    // save the mapping in our VirtualMap
-    vm_insert(va, va + nn, pa, VME_U);
+    // save the mapping in our BlockInfo
+    bi_insert(va, va + nn, pa, BIE_U);
     //cprintf("c_malloc: va: %x pa: %x\n", va, pa);
     return va;
 }
@@ -232,18 +247,16 @@ void *c_malloc(size_t n) {
 // For challenge 4 of lab 2
 // --------------------------------------------------------------
 // Free a physical contigous block at virtual address <va>
-//
-// The length will be round up to 2^k
-void c_free(void *va) {
+void b_free(void *va) {
     pml4e_t* pml4e = KADDR(rcr3());
     pte_t *ptep = NULL;
-    struct VirtualMap *vme = vm_lookup(va);
+    struct BlockInfo *bie = bi_lookup(va);
     // no entry match, return
-    if (vme == vms_end || vme->start != va)
+    if (bie == bis_end || bie->start != va)
         return;
-    void *end = vme->end;
+    void *start = va, *end = bie->end;
 
-    int flag = 0;
+    int flag = 0, c = 0;
     // remove all the pages in this block, pages can be 2MB or 4KB
     while (va < end) {
         ptep = pml4e_walk(pml4e, va, 0);
@@ -253,7 +266,10 @@ void c_free(void *va) {
             va += PDE_PS_PGSIZE;
         else
             va += PGSIZE;
+        c++;
     }
+
+    bi_delete(start, end, BIE_U);
 }
 
 // --------------------------------------------------------------
@@ -267,38 +283,48 @@ void c_free(void *va) {
 //       When split a block bigger than or equal to 2MB into
 //       pieces that smaller than 2MB, the pages of this block
 //       will be disassembled to 4KB normal pages
-int c_split(void *va, int split, void **ptr) {
+int b_split(void *va, int split, void **ptr) {
     // split number too small or is not 2^k
     if (split < 2 || (split & (split - 1)))
         return -1;
-    struct VirtualMap *vme = vm_lookup(va);
+    struct BlockInfo *bie = bi_lookup(va);
     // no entry match, return
-    if (vme == vms_end || vme->start != va)
+    if (bie == bis_end || bie->start != va)
         return -2;
     // split number too big
-    if ((vme->end - vme->start) / PGSIZE < split)
+    if ((bie->end - bie->start) / PGSIZE < split)
         return -3;
     // try to split a kernel mapping
-    if (!(vme->perm & VME_U))
+    if (!(bie->perm & BIE_U))
         return -4;
 
     int i;
     pml4e_t* pml4e = KADDR(rcr3());
-    pte_t *ptep;
-    uint64_t block_size = vme->end - vme->start, unit_size = block_size / split;
-    void *pa = vme->addr;
+    uint64_t block_size = bie->end - bie->start, unit_size = block_size / split;
+    void *pa = bie->addr;
     if (block_size > PDE_PS_PGSIZE && unit_size < PDE_PS_PGSIZE) {
         // Split from 2MB pages to 4KB pages
         // first free the block, then remap it with only 4KB pages
-        //cprintf("oversize split\n");
-        c_free(va);
+        struct PageInfo *pp = page_lookup(pml4e, va, NULL);
+
+        b_free(va);
+        page_free_list_reorder();
+
+        struct PageInfo *current = pp, *next = NULL;
+        size_t c = block_size / PGSIZE;
+        while (c > 0) {
+            next = page_contiguous_alloc(current, 1);
+            page_incref(current, 1);
+            c -= 1;
+            current = next;
+        }
         page_update(block_size / PGSIZE, va, pa, 0);
     }
-    // remove the old mapping in VirtualMap
-    vm_delete(va, VME_U);
+    // remove the old mapping in BlockInfo
+    bi_delete(va, va + block_size, BIE_U);
     for (i = 0; i < split; i++) {
         // insert the new mappings
-        vm_insert(va, va + unit_size, pa, VME_U);
+        bi_insert(va, va + unit_size, pa, BIE_U);
         ptr[i] = va;
         va += unit_size;
         pa += unit_size;
@@ -312,113 +338,149 @@ int c_split(void *va, int split, void **ptr) {
 // Coalesce <coalesce> physical contigous blocks in the pointer
 // array <ptr>
 //
-// Check: the pointers should be valid (in VirtualMap)
+// Check: the pointers should be valid (in BlockInfo)
 //        the pointer address spaces is contigous
 //
 // Note: If coalesce blocks to bigger than or equal to 2MB,
 //       this function will try to use 2MB page when possible.
-void *c_coalesce(int coalesce, void **ptr) {
+void *b_coalesce(int coalesce, void **ptr) {
     // coalesce too small
     if (coalesce < 2)
         return NULL;
-    struct VirtualMap *vme = vm_lookup(ptr[0]);
+    struct BlockInfo *bie = bi_lookup(ptr[0]);
     // no entry match, return
-    if (vme == vms_end || vme->start != ptr[0])
+    if (bie == bis_end || bie->start != ptr[0])
         return NULL;
 
-    void *base_va = vme->start, *base_pa = vme->addr;
+    pml4e_t* pml4e = KADDR(rcr3());
+    void *base_va = bie->start, *base_pa = bie->addr;
     void *va = base_va;
     void *pa = base_pa;
     int i;
     for (i = 0; i < coalesce; i++) {
-        vme = vm_lookup(ptr[i]);
-        // Condition 1 & 2: the pointer is valid in VirtualMap
-        // Condition 3 & 4: the virtual and physical address is contigous
-        if (vme == vms_end || vme->start != ptr[i] || va != vme->start || pa != vme->addr)
+        bie = bi_lookup(ptr[i]);
+        // Condition 1 & 2: the pointer is valid in BlockInfo
+        // Condition 3 & 4: the virtual and physical address is contiguous
+        if (bie == bis_end || bie->start != ptr[i] || va != bie->start || pa != bie->addr)
             return NULL;
-        va = vme->end;
-        pa = vme->addr + (vme->end - vme->start);
+        va = bie->end;
+        pa = bie->addr + (bie->end - bie->start);
     }
+    struct PageInfo *pp = page_lookup(pml4e, ptr[0], NULL);
+
     // free all the sub-blocks
-    for (i = 0; i < coalesce; i++)
-        c_free(ptr[i]);
-    // realloc the new block, try to use 2MB pages
+    for (i = coalesce - 1; i >= 0; i--)
+        b_free(ptr[i]);
+
+    page_free_list_reorder();
+    // contiguous alloc the pages
+    struct PageInfo *current = pp, *next = NULL;
+    void *c_va = base_va;
+    size_t c = (va - base_va) / PGSIZE, a = 0, b = 0;;
+    while (c > 0) {
+        if ((uint64_t)c_va % PDE_PS_PGSIZE == 0) {
+            next = page_contiguous_alloc(current, BLOCK_PGNUM(c));
+            page_incref(current, BLOCK_PGNUM(c));
+            c -= BLOCK_PGNUM(c);
+            c_va += PDE_PS_PGSIZE;
+        }
+        else {
+            next = page_contiguous_alloc(current, 1);
+            page_incref(current, 1);
+            c -= BLOCK_PGNUM(1);
+            c_va += PGSIZE;
+        }
+        current = next;
+    }
+    // update the page table
     page_update((va - base_va) / PGSIZE, base_va, base_pa, 1);
     // insert the new mapping
-    vm_insert(base_va, va, base_pa, VME_U);
+    bi_insert(base_va, va, base_pa, BIE_U);
     return ptr[0];
 }
 
 // --------------------------------------------------------------
 // For challenge 4 of lab 2
 // --------------------------------------------------------------
-// Init the VirtualMap structure
-// vms points to the base address of VirtualMap
-// vms_end points to the end of VirtualMap
-void vm_init() {
-    vms = boot_vms;
-    memset(vms, 0, VM_NUMBER * sizeof(struct VirtualMap));
-    vms_end = vms;
+// Init the BlockInfo structure
+// bis points to the base address of BlockInfo
+// bis_end points to the end of BlockInfo
+void bi_init() {
+    bis = boot_bis;
+    memset(bis, 0, BLOCK_NUMBER * sizeof(struct BlockInfo));
+    bis_end = bis;
 }
 
 // --------------------------------------------------------------
 // For challenge 4 of lab 2
 // --------------------------------------------------------------
-// Find the insert point of virtual address <start> in VirtualMap
-struct VirtualMap *vm_lookup(void *start) {
-    struct VirtualMap *vme = vms;
+// Find the insert point of virtual address <start> in BlockInfo
+struct BlockInfo *bi_lookup(void *start) {
+    struct BlockInfo *bie = bis;
 
-    while (vme < vms_end && start >= vme->end)
-        vme++;
-    return vme;
+    while (bie < bis_end && start >= bie->end)
+        bie++;
+    return bie;
 }
 
 // --------------------------------------------------------------
 // For challenge 4 of lab 2
 // --------------------------------------------------------------
-// Insert a mapping into VirtualMap
+// Insert a mapping into BlockInfo
 // <start> is the start virtual address
 // <end> is the end virtual address
 // <addr> is the start physical address
 // <perm> is the permission
-int vm_insert(void *start, void *end, void *addr, uint8_t perm) {
-    struct VirtualMap *vme = NULL;
-    // check if the VirtualMap is full
-    if (vms_end == vms + VM_NUMBER * sizeof(struct VirtualMap))
+int bi_insert(void *start, void *end, void *addr, uint8_t perm) {
+    struct BlockInfo *bie = NULL;
+    // check if the BlockInfo is full
+    if (bis_end == bis + BLOCK_NUMBER * sizeof(struct BlockInfo))
         return -E_NO_MEM;
+    // first remove the mapping within the range
+    bi_delete(start, end, perm);
     // find the insert point
-    vme = vm_lookup(start);
-    if (vme != vms_end)
-        memmove((vme + 1), vme, (vms_end - vme) * sizeof(struct VirtualMap));
-    vms_end ++;
+    bie = bi_lookup(start);
+    if (bie != bis_end)
+        memmove((bie + 1), bie, (bis_end - bie) * sizeof(struct BlockInfo));
+    bis_end ++;
 
-    vme->start = start;
-    vme->end = end;
-    vme->addr = addr;
-    vme->perm = perm;
-    //cprintf("vm_insert @ %x: start %x end %x addr %x perm %d\n", vme, start, end, addr, perm);
+    bie->start = start;
+    bie->end = end;
+    bie->addr = addr;
+    bie->perm = perm;
+    //cprintf("bi_insert @ %x: start %x end %x addr %x perm %d\n", bie, start, end, addr, perm);
     return 0;
 }
 
 // --------------------------------------------------------------
 // For challenge 4 of lab 2
 // --------------------------------------------------------------
-// Delete a mapping into VirtualMap
+// Delete a mapping into BlockInfo
 // <start> is the start virtual address
+// <end> is the end virtual address
 // <perm> is the permission
-int vm_delete(void *start, uint8_t perm) {
-    //cprintf("vm_delete @ %x: start %x end %x perm %d\n", 0, start, end, perm);
-    struct VirtualMap *vme = NULL;
+int bi_delete(void *start, void *end, uint8_t perm) {
+    //cprintf("bi_delete @ %x: start %x end %x perm %d\n", 0, start, end, perm);
+    struct BlockInfo *bie = NULL;
 
-    vme = vm_lookup(start);
-    // check if the entry is the target
-    if (vme != vms_end && vme->start == start) {
-        memmove(vme, (vme + 1), (vms_end - 1 - vme) * sizeof(struct VirtualMap));
-        vms_end--;
-        vms_end->start = 0;
-        vms_end->end = 0;
-        vms_end->addr = 0;
-        vms_end->perm = 0;
+    bie = bi_lookup(start);
+
+    while (bie != bis_end && bie->start < end) {
+        if (bie->end <= end) {
+            // bie within the range, remove the whole entry
+            memmove(bie, (bie + 1), (bis_end - 1 - bie) * sizeof(struct BlockInfo));
+            bis_end--;
+            bis_end->start = 0;
+            bis_end->end = 0;
+            bis_end->addr = 0;
+            bis_end->perm = 0;
+        }
+        else {
+            // bie is partial within the range, modify the addr and start field
+            bie->addr += end - bie->start;
+            bie->start = end;
+            break;
+        }
     }
 
     return 0;
@@ -427,51 +489,57 @@ int vm_delete(void *start, uint8_t perm) {
 // --------------------------------------------------------------
 // For challenge 4 of lab 2
 // --------------------------------------------------------------
-// Find a free and contigous virtual space of <n> bytes in VirtualMap
-void *vm_block(size_t n) {
-    void *va = (void *)VM_U_START;
-    struct VirtualMap *vme = vm_lookup(va);
+// Find a free and contigous virtual space of <n> bytes in BlockInfo
+void *bi_block(size_t n) {
+    void *va = (void *)BLOCK_U_START;
+    struct BlockInfo *bie = bi_lookup(va);
 
-    if (vme == vms_end || vme->start >= va + n)
+    if (bie == bis_end || bie->start >= va + n)
         return va;
 
     do {
         va += BLOCK_ALIGN(n / PGSIZE);
-        vme = vm_lookup(va);
-    } while (vme != vms_end && vme->start < va + n);
+        bie = bi_lookup(va);
+    } while (bie != bis_end && bie->start < va + n);
 
-    //cprintf("vm_block: va: %x vme: %x vms_end: %x\n", va, vme, vms_end);
-    //cprintf("          start: %x end: %x addr: %x perm: %d\n", vme->start, vme->end, vme->addr, vme->perm);
-
+    //cprintf("bi_block: va: %x bie: %x bis_end: %x\n", va, bie, bis_end);
+    //cprintf("          start: %x end: %x addr: %x perm: %d\n", bie->start, bie->end, bie->addr, bie->perm);
     return va;
 }
 
-void check_c_utils() {
+void check_b_utils() {
     void *cp1, *cp2, *cp3, *cp4, *cp5;
-    struct VirtualMap *vme1, *vme2, *vme3;
+    struct BlockInfo *bie1, *bie2, *bie3;
     void *ptr[8];
 
     cp1 = cp2 = cp3 = cp4 = cp5 = 0;
-    vme1 = vme2 = vme3 = 0;
+    bie1 = bie2 = bie3 = 0;
     ptr[0] = ptr[1] = ptr[2] = ptr[3] = ptr[4] = ptr[5] = ptr[6] = ptr[7] = 0;
+
+    // should be 0 block in current memory
+    assert(mm_binfo(0) == 0);
 
     // malloc cp1 as 32KB (8 pages, 4KB per page)
     // malloc cp2 as  8MB (4 pages, 2MB per page)
-    assert(cp1 = c_malloc(PGSIZE * 8));
-    assert(cp2 = c_malloc(PDE_PS_PGSIZE * 4));
+    assert(cp1 = b_malloc(PGSIZE * 8));
+    assert(cp2 = b_malloc(PDE_PS_PGSIZE * 4));
+
+    // should be 2 blocks in current memory
+    assert(mm_binfo(0) == 2);
 
     // check the page numbers, should be 8 and 4
     assert(mm_showmaps((uint64_t)cp1, (uint64_t)cp1 + PGSIZE * 8, 0) == 8);
     assert(mm_showmaps((uint64_t)cp2, (uint64_t)cp2 + PDE_PS_PGSIZE * 4, 0) == 4);
 
-    vme1 = vm_lookup(cp1);
-    vme2 = vm_lookup(cp2);
-    // should have correct entries in VirtualMap
-    assert(vme1 != vms_end && vme1->start == cp1 && vme1->end == vme1->start + PGSIZE * 8);
-    assert(vme2 != vms_end && vme2->start == cp2 && vme2->end == vme2->start + PDE_PS_PGSIZE * 4);
+    bie1 = bi_lookup(cp1);
+    bie2 = bi_lookup(cp2);
+    // should have correct entries in BlockInfo
+    assert(bie1 != bis_end && bie1->start == cp1 && bie1->end == bie1->start + PGSIZE * 8);
+    assert(bie2 != bis_end && bie2->start == cp2 && bie2->end == bie2->start + PDE_PS_PGSIZE * 4);
 
-    // split 32KB into 8 pieces, the page number should be 8 (no change)
-    c_split(cp1, 8, ptr);
+    // split 32KB into 8 pieces, the block number should be 9 (8+1), the page number of block 1 should be 8 (no change)
+    b_split(cp1, 8, ptr);
+    assert(mm_binfo(0) == 9);
     assert(mm_showmaps((uint64_t)cp1, (uint64_t)cp1 + PGSIZE * 8, 0) == 8);
 
     // check the pointer array
@@ -485,50 +553,55 @@ void check_c_utils() {
     assert(ptr[7] && ptr[7] != ptr[6] && ptr[7] != ptr[5] && ptr[7] != ptr[4] && ptr[7] != ptr[3] && ptr[7] != ptr[2] && ptr[7] != ptr[1] && ptr[7] != ptr[0]);
 
     // check the validity and continuousness
-    vme1 = vm_lookup(ptr[0]);
-    assert(vme1 != vms_end && vme1->start == ptr[0] && vme1->end == vme1->start + PGSIZE);
-    vme2 = vm_lookup(ptr[1]);
-    assert(vme2 != vms_end && vme2->start == ptr[1] && vme2->start == vme1->end && vme2->end == vme2->start + PGSIZE);
-    vme3 = vm_lookup(ptr[2]);
-    assert(vme3 != vms_end && vme3->start == ptr[2] && vme3->start == vme2->end && vme3->end == vme3->start + PGSIZE);
-    vme1 = vm_lookup(ptr[3]);
-    assert(vme1 != vms_end && vme1->start == ptr[3] && vme1->start == vme3->end && vme1->end == vme1->start + PGSIZE);
-    vme2 = vm_lookup(ptr[4]);
-    assert(vme2 != vms_end && vme2->start == ptr[4] && vme2->start == vme1->end && vme2->end == vme2->start + PGSIZE);
-    vme3 = vm_lookup(ptr[5]);
-    assert(vme3 != vms_end && vme3->start == ptr[5] && vme3->start == vme2->end && vme3->end == vme3->start + PGSIZE);
-    vme1 = vm_lookup(ptr[6]);
-    assert(vme1 != vms_end && vme1->start == ptr[6] && vme1->start == vme3->end && vme1->end == vme1->start + PGSIZE);
-    vme2 = vm_lookup(ptr[7]);
-    assert(vme2 != vms_end && vme2->start == ptr[7] && vme2->start == vme1->end && vme2->end == vme2->start + PGSIZE);
+    bie1 = bi_lookup(ptr[0]);
+    assert(bie1 != bis_end && bie1->start == ptr[0] && bie1->end == bie1->start + PGSIZE);
+    bie2 = bi_lookup(ptr[1]);
+    assert(bie2 != bis_end && bie2->start == ptr[1] && bie2->start == bie1->end && bie2->end == bie2->start + PGSIZE);
+    bie3 = bi_lookup(ptr[2]);
+    assert(bie3 != bis_end && bie3->start == ptr[2] && bie3->start == bie2->end && bie3->end == bie3->start + PGSIZE);
+    bie1 = bi_lookup(ptr[3]);
+    assert(bie1 != bis_end && bie1->start == ptr[3] && bie1->start == bie3->end && bie1->end == bie1->start + PGSIZE);
+    bie2 = bi_lookup(ptr[4]);
+    assert(bie2 != bis_end && bie2->start == ptr[4] && bie2->start == bie1->end && bie2->end == bie2->start + PGSIZE);
+    bie3 = bi_lookup(ptr[5]);
+    assert(bie3 != bis_end && bie3->start == ptr[5] && bie3->start == bie2->end && bie3->end == bie3->start + PGSIZE);
+    bie1 = bi_lookup(ptr[6]);
+    assert(bie1 != bis_end && bie1->start == ptr[6] && bie1->start == bie3->end && bie1->end == bie1->start + PGSIZE);
+    bie2 = bi_lookup(ptr[7]);
+    assert(bie2 != bis_end && bie2->start == ptr[7] && bie2->start == bie1->end && bie2->end == bie2->start + PGSIZE);
 
     // coalesce the block as 3 pages, 2 pages and 3 pages
-    assert(cp3 = c_coalesce(3, &ptr[0]));
-    assert(cp4 = c_coalesce(2, &ptr[3]));
-    assert(cp5 = c_coalesce(3, &ptr[5]));
+    assert(cp3 = b_coalesce(3, &ptr[0]));
+    assert(cp4 = b_coalesce(2, &ptr[3]));
+    assert(cp5 = b_coalesce(3, &ptr[5]));
+    // the block number should be 4 (3 + 1)
+    assert(mm_binfo(0) == 4);
     // the page number in 3 blocks should be 3, 2, 3
     assert(mm_showmaps((uint64_t)cp3, (uint64_t)cp3 + PGSIZE * 3, 0) == 3);
     assert(mm_showmaps((uint64_t)cp4, (uint64_t)cp4 + PGSIZE * 2, 0) == 2);
     assert(mm_showmaps((uint64_t)cp5, (uint64_t)cp5 + PGSIZE * 3, 0) == 3);
     // check the validity and continuousness
-    vme1 = vm_lookup(cp3);
-    assert(vme1 != vms_end && vme1->start == cp3 && vme1->end == vme1->start + PGSIZE * 3);
-    vme2 = vm_lookup(cp4);
-    assert(vme2 != vms_end && vme2->start == cp4 && vme2->start == vme1->end && vme2->end == vme2->start + PGSIZE * 2);
-    vme3 = vm_lookup(cp5);
-    assert(vme3 != vms_end && vme3->start == cp5 && vme3->start == vme2->end && vme3->end == vme3->start + PGSIZE * 3);
-    // coalesce the 3 blocks to 1, the page number should be 8
+    bie1 = bi_lookup(cp3);
+    assert(bie1 != bis_end && bie1->start == cp3 && bie1->end == bie1->start + PGSIZE * 3);
+    bie2 = bi_lookup(cp4);
+    assert(bie2 != bis_end && bie2->start == cp4 && bie2->start == bie1->end && bie2->end == bie2->start + PGSIZE * 2);
+    bie3 = bi_lookup(cp5);
+    assert(bie3 != bis_end && bie3->start == cp5 && bie3->start == bie2->end && bie3->end == bie3->start + PGSIZE * 3);
+    // coalesce the 3 blocks to 1, the block number should be 2, the page number should be 8
     ptr[0] = cp3; ptr[1] = cp4; ptr[2] = cp5;
-    assert(cp3 = c_coalesce(3, &ptr[0]));
+    assert(cp3 = b_coalesce(3, &ptr[0]));
+    assert(mm_binfo(0) == 2);
     assert(mm_showmaps((uint64_t)cp3, (uint64_t)cp3 + PGSIZE * 8, 0) == 8);
     // check the validity and continuousness
-    vme1 = vm_lookup(cp3);
-    assert(vme1 != vms_end && vme1->start == cp3 && vme1->end == vme1->start + PGSIZE * 8);
+    bie1 = bi_lookup(cp3);
+    assert(bie1 != bis_end && bie1->start == cp3 && bie1->end == bie1->start + PGSIZE * 8);
 
     // now split 8MB into 8 pieces
     // since the unit size will be 1MB, the 2MB pages will be disassembled into 4KB pages
+    // the block number should be 9 (1+8)
     // the page number should be 512 * 4 = 2048
-    c_split(cp2, 8, ptr);
+    b_split(cp2, 8, ptr);
+    assert(mm_binfo(0) == 9);
     assert(mm_showmaps((uint64_t)cp2, (uint64_t)cp2 + PDE_PS_PGSIZE * 4, 0) == 2048);
     // check the pointer array
     assert(ptr[0]);
@@ -541,27 +614,29 @@ void check_c_utils() {
     assert(ptr[7] && ptr[7] != ptr[6] && ptr[7] != ptr[5] && ptr[7] != ptr[4] && ptr[7] != ptr[3] && ptr[7] != ptr[2] && ptr[7] != ptr[1] && ptr[7] != ptr[0]);
 
     // check the validity and continuousness
-    vme1 = vm_lookup(ptr[0]);
-    assert(vme1 != vms_end && vme1->start == ptr[0] && vme1->end == vme1->start + PDE_PS_PGSIZE / 2);
-    vme2 = vm_lookup(ptr[1]);
-    assert(vme2 != vms_end && vme2->start == ptr[1] && vme2->start == vme1->end && vme2->end == vme2->start + PDE_PS_PGSIZE / 2);
-    vme3 = vm_lookup(ptr[2]);
-    assert(vme3 != vms_end && vme3->start == ptr[2] && vme3->start == vme2->end && vme3->end == vme3->start + PDE_PS_PGSIZE / 2);
-    vme1 = vm_lookup(ptr[3]);
-    assert(vme1 != vms_end && vme1->start == ptr[3] && vme1->start == vme3->end && vme1->end == vme1->start + PDE_PS_PGSIZE / 2);
-    vme2 = vm_lookup(ptr[4]);
-    assert(vme2 != vms_end && vme2->start == ptr[4] && vme2->start == vme1->end && vme2->end == vme2->start + PDE_PS_PGSIZE / 2);
-    vme3 = vm_lookup(ptr[5]);
-    assert(vme3 != vms_end && vme3->start == ptr[5] && vme3->start == vme2->end && vme3->end == vme3->start + PDE_PS_PGSIZE / 2);
-    vme1 = vm_lookup(ptr[6]);
-    assert(vme1 != vms_end && vme1->start == ptr[6] && vme1->start == vme3->end && vme1->end == vme1->start + PDE_PS_PGSIZE / 2);
-    vme2 = vm_lookup(ptr[7]);
-    assert(vme2 != vms_end && vme2->start == ptr[7] && vme2->start == vme1->end && vme2->end == vme2->start + PDE_PS_PGSIZE / 2);
+    bie1 = bi_lookup(ptr[0]);
+    assert(bie1 != bis_end && bie1->start == ptr[0] && bie1->end == bie1->start + PDE_PS_PGSIZE / 2);
+    bie2 = bi_lookup(ptr[1]);
+    assert(bie2 != bis_end && bie2->start == ptr[1] && bie2->start == bie1->end && bie2->end == bie2->start + PDE_PS_PGSIZE / 2);
+    bie3 = bi_lookup(ptr[2]);
+    assert(bie3 != bis_end && bie3->start == ptr[2] && bie3->start == bie2->end && bie3->end == bie3->start + PDE_PS_PGSIZE / 2);
+    bie1 = bi_lookup(ptr[3]);
+    assert(bie1 != bis_end && bie1->start == ptr[3] && bie1->start == bie3->end && bie1->end == bie1->start + PDE_PS_PGSIZE / 2);
+    bie2 = bi_lookup(ptr[4]);
+    assert(bie2 != bis_end && bie2->start == ptr[4] && bie2->start == bie1->end && bie2->end == bie2->start + PDE_PS_PGSIZE / 2);
+    bie3 = bi_lookup(ptr[5]);
+    assert(bie3 != bis_end && bie3->start == ptr[5] && bie3->start == bie2->end && bie3->end == bie3->start + PDE_PS_PGSIZE / 2);
+    bie1 = bi_lookup(ptr[6]);
+    assert(bie1 != bis_end && bie1->start == ptr[6] && bie1->start == bie3->end && bie1->end == bie1->start + PDE_PS_PGSIZE / 2);
+    bie2 = bi_lookup(ptr[7]);
+    assert(bie2 != bis_end && bie2->start == ptr[7] && bie2->start == bie1->end && bie2->end == bie2->start + PDE_PS_PGSIZE / 2);
 
     // coalesce the block as 1/8, 5/8, 2/8
     assert(cp3 = ptr[0]);
-    assert(cp4 = c_coalesce(5, &ptr[1]));
-    assert(cp5 = c_coalesce(2, &ptr[6]));
+    assert(cp4 = b_coalesce(5, &ptr[1]));
+    assert(cp5 = b_coalesce(2, &ptr[6]));
+    // the block number should be 4
+    assert(mm_binfo(0) == 4);
     // the page number in 3 blocks should be:
     // block 1 (1/8): 1MB block, 256 pages (4KB)
     // block 2 (5/8): 5MB block, 256 pages (4KB) [coz the first 1MB is not aligned to 2MB]
@@ -572,24 +647,30 @@ void check_c_utils() {
     assert(mm_showmaps((uint64_t)cp4, (uint64_t)cp4 + PDE_PS_PGSIZE / 2 * 5, 0) == 258);
     assert(mm_showmaps((uint64_t)cp5, (uint64_t)cp5 + PDE_PS_PGSIZE / 2 * 2, 0) == 1);
     // check the validity and continuousness
-    vme1 = vm_lookup(cp3);
-    assert(vme1 != vms_end && vme1->start == cp3 && vme1->end == vme1->start + PDE_PS_PGSIZE / 2);
-    vme2 = vm_lookup(cp4);
-    assert(vme2 != vms_end && vme2->start == cp4 && vme2->start == vme1->end && vme2->end == vme2->start + PDE_PS_PGSIZE / 2 * 5);
-    vme3 = vm_lookup(cp5);
-    assert(vme3 != vms_end && vme3->start == cp5 && vme3->start == vme2->end && vme3->end == vme3->start + PDE_PS_PGSIZE / 2 * 2);
-    // coalesce the 3 blocks to 1, the page number should become 4
+    bie1 = bi_lookup(cp3);
+    assert(bie1 != bis_end && bie1->start == cp3 && bie1->end == bie1->start + PDE_PS_PGSIZE / 2);
+    bie2 = bi_lookup(cp4);
+    assert(bie2 != bis_end && bie2->start == cp4 && bie2->start == bie1->end && bie2->end == bie2->start + PDE_PS_PGSIZE / 2 * 5);
+    bie3 = bi_lookup(cp5);
+    assert(bie3 != bis_end && bie3->start == cp5 && bie3->start == bie2->end && bie3->end == bie3->start + PDE_PS_PGSIZE / 2 * 2);
+    // coalesce the 3 blocks to 1, the block number should be 2, the page number should become 4
     ptr[0] = cp3; ptr[1] = cp4; ptr[2] = cp5;
-    assert(cp3 = c_coalesce(3, &ptr[0]));
+    assert(cp3 = b_coalesce(3, &ptr[0]));
+    assert(mm_binfo(0) == 2);
     assert(mm_showmaps((uint64_t)cp3, (uint64_t)cp3 + PDE_PS_PGSIZE * 4, 0) == 4);
     // check the validity and continuousness
-    vme1 = vm_lookup(cp3);
-    assert(vme1 != vms_end && vme1->start == cp3 && vme1->end == vme1->start + PDE_PS_PGSIZE * 4);
-    // free the blocks
-    c_free(cp1);
-    c_free(cp2);
+    bie1 = bi_lookup(cp3);
+    assert(bie1 != bis_end && bie1->start == cp3 && bie1->end == bie1->start + PDE_PS_PGSIZE * 4);
+    // free the blocks*/
+    b_free(cp1);
+    b_free(cp2);
 
-    cprintf("check_c_utils() succeeded!\n");
+    // after free the blocks, the block number should be 0, and page number in blocks should be 0
+    assert(mm_binfo(0) == 0);
+    assert(mm_showmaps((uint64_t)cp1, (uint64_t)cp1 + PGSIZE * 8, 0) == 0);
+    assert(mm_showmaps((uint64_t)cp2, (uint64_t)cp2 + PDE_PS_PGSIZE * 4, 0) == 0);
+
+    cprintf("check_b_utils() succeeded!\n");
     return;
 
 }

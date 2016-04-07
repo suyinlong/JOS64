@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-06 23:18:29
+* @Last Modified time: 2016-04-07 12:38:27
 */
 
 #include <inc/stdio.h>
@@ -23,8 +23,8 @@ extern pml4e_t *boot_pml4e;        // Kernel's initial page directory
 extern physaddr_t boot_cr3;        // Physical address of boot time page directory
 extern size_t npages;
 
-extern struct VirtualMap *vms;
-extern struct VirtualMap *vms_end;
+extern struct BlockInfo *bis;
+extern struct BlockInfo *bis_end;
 
 uint64_t mm_gethex(const char *str) {
     uint64_t x = 0;
@@ -46,7 +46,7 @@ uint64_t mm_gethex(const char *str) {
 void mm_printmap(pte_t *ptep, const void *va) {
     uint64_t flag;
     if (ptep) {
-        cprintf("  Virual address: 0x%016x", va);
+        cprintf("    Virual address: 0x%016x", va);
         cprintf(" Physical address: 0x%016x", PTE_ADDR(*ptep));
         cprintf(" Flag:");
 
@@ -71,7 +71,7 @@ int mm_pageinfo() {
     pde_t *pdep = NULL;
     pte_t *ptep = NULL;
     uint64_t info_cr3 = rcr3(), info_cr4 = rcr4();
-    cprintf("PGSIZE: %d, boot_pml4e: 0x%016x, CR3: 0x%016x, CR4: 0x%016x\n", PGSIZE, boot_pml4e, info_cr3, info_cr4);
+    cprintf("  PGSIZE: %d, boot_pml4e: 0x%016x, CR3: 0x%016x, CR4: 0x%016x\n", PGSIZE, boot_pml4e, info_cr3, info_cr4);
 
     uint64_t pml4e_c = 0, pdpe_c = 0, pde_c = 0, pte_c = 0;
     uint64_t pdpe_p = 0, pde_p = 0, pte_p = 0;
@@ -96,7 +96,7 @@ int mm_pageinfo() {
                     for (k  = 0; k < PGSIZE / sizeof(pde_t); k++) {
                         if (pdep[k]) {
                             pde_c ++;
-                            //cprintf("  Found pgdirp item @ %d : %016x!\n", k, pgdirp[k]);
+                            //cprintf("  Found pgdirp item @ %d : %016x!\n", k, pdep[k]);
                             //continue;
                             if (pdep[k] & PTE_PS) {
                                 pde_p ++;
@@ -117,15 +117,15 @@ int mm_pageinfo() {
             }
         }
     }
-    cprintf("Total: \033[0;33m%d\033[0m pml4 entries, \033[0;33m%d\033[0m pdp entries, \033[0;33m%d\033[0m pd entries and \033[0;33m%d\033[0m pt entries.\n", pml4e_c, pdpe_c, pde_c, pte_c);
-    cprintf("       \033[0;33m%d\033[0m 1GB pages, \033[0;33m%d\033[0m 2MB pages, \033[0;33m%d\033[0m 4KB pages (\033[0;33m%d\033[0m pages in total).\n", pdpe_p, pde_p, pte_p, pdpe_p + pde_p + pte_p);
-    cprintf("       \033[0;33m%d\033[0m pages are used for paging translation.\n", 1 + pml4e_c + pdpe_c - pdpe_p + pde_c - pde_p);
+    cprintf("  Total: \033[0;33m%d\033[0m pml4 entries, \033[0;33m%d\033[0m pdp entries, \033[0;33m%d\033[0m pd entries and \033[0;33m%d\033[0m pt entries.\n", pml4e_c, pdpe_c, pde_c, pte_c);
+    cprintf("         \033[0;33m%d\033[0m 1GB pages, \033[0;33m%d\033[0m 2MB pages, \033[0;33m%d\033[0m 4KB pages (\033[0;33m%d\033[0m pages in total).\n", pdpe_p, pde_p, pte_p, pdpe_p + pde_p + pte_p);
+    cprintf("         \033[0;33m%d\033[0m pages are used for paging translation.\n", 1 + pml4e_c + pdpe_c - pdpe_p + pde_c - pde_p);
 
     return 0;
 }
 
 int mm_showmaps(uint64_t start, uint64_t end, int pflag) {
-    if (pflag) cprintf("Show maps: [0x%016x - 0x%016x]\n", start, end);
+    if (pflag) cprintf("  Show maps: [0x%016x - 0x%016x]\n", start, end);
 
     pml4e_t* pml4e = boot_pml4e;
     pte_t *ptep = NULL;
@@ -144,9 +144,9 @@ int mm_showmaps(uint64_t start, uint64_t end, int pflag) {
         return count;
 
     if (count)
-        cprintf("Found \033[0;33m%d\033[0m mappings within the range [0x%016x - 0x%016x].\n", count, start, end);
+        cprintf("  Found \033[0;33m%d\033[0m mappings within the range [0x%016x - 0x%016x].\n", count, start, end);
     else
-        cprintf("No mapping within the range.\n");
+        cprintf("  No mapping within the range.\n");
     return count;
 }
 
@@ -167,15 +167,15 @@ int mm_setmap(uint64_t start, uint64_t end, uint64_t setflag, uint64_t clrflag) 
         }
 
     if (!count)
-        cprintf("No mapping affected.\n");
+        cprintf("  No mapping affected.\n");
     else
-        cprintf("%d mapping(s) affected.\n", count);
+        cprintf("  %d mapping(s) affected.\n", count);
 
     return 0;
 }
 
 int mm_dumpmem(uint64_t start, uint64_t end) {
-    cprintf("Dump memory from virtual address 0x%016x to 0x%016x:", start, end);
+    cprintf("  Dump memory from virtual address 0x%016x to 0x%016x:", start, end);
     uint64_t va = 0;
     for (va = ROUNDDOWN(start, 0x10); va < ROUNDUP(end, 0x10); va++) {
         if (va % 0x1000 == 0) cprintf("\n  ------------------------------------------------------------------");
@@ -188,16 +188,27 @@ int mm_dumpmem(uint64_t start, uint64_t end) {
     return 0;
 }
 
-int mm_vmap(int pflag) {
+int mm_binfo(int pflag) {
     int count = 0;
-    struct VirtualMap *vme = vms;
+    struct BlockInfo *bie = bis;
+    if (!bie) {
+        if (pflag)
+            cprintf("  \033[0;31mWarning: BlockInfo structure not initialized. Please check the c_block_flag.\033[0m\n");
+        return -1;
+    }
     if (pflag)
-        cprintf("Virtual Map:\n");
-    while (vme != vms_end) {
+        cprintf("  Block Info:\n");
+    while (bie != bis_end) {
         count++;
         if (pflag)
-            cprintf("  # Start: 0x%016x End: %016x PAddr: %016x Perm: %d\n", vme->start, vme->end, vme->addr, vme->perm);
-        vme++;
+            cprintf("  # Start: 0x%016x End: 0x%016x PAddr: 0x%016x Perm: %d\n", bie->start, bie->end, bie->addr, bie->perm);
+        bie++;
+    }
+    if (pflag) {
+        if (count)
+            cprintf("  Found \033[0;33m%d\033[0m blocks.\n", count);
+        else
+            cprintf("  Found no block.\n");
     }
     return count;
 }
@@ -325,7 +336,7 @@ int mon_mm_dumpmem(int argc, char **argv, struct Trapframe *tf) {
     uint64_t start = mm_gethex(argv[2] + 2), end = mm_gethex(argv[3] + 2);
 
     if (argv[1][1] == 'p') {
-        cprintf("Dump memory from physical address 0x%016x to 0x%016x\n", start, end);
+        cprintf("  Dump memory from physical address 0x%016x to 0x%016x\n", start, end);
         start = (uint64_t)KADDR(start);
         end = (uint64_t)KADDR(end);
     }
@@ -343,7 +354,7 @@ bad_input_dumpmem:
     return -1;
 }
 
-int mon_mm_vmap(int argc, char **argv, struct Trapframe *tf) {
-    mm_vmap(1);
+int mon_mm_binfo(int argc, char **argv, struct Trapframe *tf) {
+    mm_binfo(1);
     return 0;
 }

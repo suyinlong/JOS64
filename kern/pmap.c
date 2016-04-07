@@ -12,7 +12,7 @@
 #include <kern/env.h>
 #include <kern/cpu.h>
 #include <kern/pmaputils.h>
-
+int mm_pageinfo();
 extern uint64_t pml4phys;
 #define BOOT_PAGE_TABLE_START ((uint64_t) KADDR((uint64_t) &pml4phys))
 #define BOOT_PAGE_TABLE_END   ((uint64_t) KADDR((uint64_t) (&pml4phys) + 5*PGSIZE))
@@ -41,8 +41,8 @@ struct PageInfo *page_free_list;	// Free list of physical pages
 //
 // pte_ps_flag  : large page size using PTE_PS flag
 // c_block_flag : contigous pages malloc/free support
-int pte_ps_flag = 1, c_block_flag = 0;
-struct VirtualMap *boot_vms; // Virtual Map array
+int pte_ps_flag = 1, c_block_flag = 1;
+struct BlockInfo *boot_bis = NULL; // Block Info array
 
 // --------------------------------------------------------------
 // Detect machine's physical memory setup.
@@ -290,11 +290,11 @@ x64_vm_init(void)
 
 	// ************************************************************
 	// For challenge problem 4 of lab2, we alloc an array of VM_NUMBER
-	// 'struct VirtualMap' and store it in 'boot_vms'
+	// 'struct BlockInfo' and store it in 'boot_vms'
 	// Our extension pmaputils use this array to keep track of virtual
 	// mappings as well as allocated blocks
 	if (c_block_flag)
-		boot_vms = boot_alloc(VM_NUMBER * sizeof(struct VirtualMap));
+		boot_bis = boot_alloc(BLOCK_NUMBER * sizeof(struct BlockInfo));
 
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
@@ -310,9 +310,9 @@ x64_vm_init(void)
 
 	// ************************************************************
 	// For challenge problem 4 of lab2
-	// Now we initial the Virtual Map
+	// Now we initial the Block Info
 	if (c_block_flag)
-		vm_init();
+		bi_init();
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -380,9 +380,9 @@ x64_vm_init(void)
 
 	// ************************************************************
 	// For challenge problem 4 of lab2
-	// use check_c_utils() to test the contigous block functions
+	// use check_b_utils() to test the contigous block functions
 	if (c_block_flag)
-		check_c_utils();
+		check_b_utils();
 }
 
 
@@ -732,9 +732,6 @@ boot_map_region(pml4e_t *pml4e, uintptr_t la, size_t size, physaddr_t pa, int pe
 			*ptep = PTE_ADDR(pa + i) | perm | PTE_P;
 		}
 	}
-	// insert the mapping in our structure VirtualMap
-	if (c_block_flag)
-		vm_insert((void *)la, (void *)la + size, (void *)pa, 0);
 }
 
 //
@@ -782,9 +779,6 @@ page_insert(pml4e_t *pml4e, struct PageInfo *pp, void *va, int perm)
 	*ptep = page2pa(pp);
 	*ptep |= perm | PTE_P;
 	page_incref(pp, 1);
-	// insert the mapping in our structure VirtualMap
-	if (c_block_flag)
-		vm_insert(va, va + PGSIZE, (void *)page2pa(pp), 0);
 	return 0;
 }
 
@@ -835,9 +829,6 @@ page_remove(pml4e_t *pml4e, void *va)
 	if (pp) {
 		page_decref(pp);
 		*ptep = 0;
-		// remove the mapping from our structure VirtualMap
-		if (c_block_flag)
-			vm_delete(va, 0);
 		tlb_invalidate(pml4e, va);
 	}
 }

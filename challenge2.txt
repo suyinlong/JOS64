@@ -1,3 +1,240 @@
 List challenge problems completed as part of the lab 2 handin, as well
 as the problem number.  If you worked any previous lab challenges and
 submitted them with this lab, list them here, along with the lab number.
+
+---------------------------------------------------------------------
+Lab 2 Challenge 1:
+
+We have used the PTE_PS bit in the page directory entries to achieve
+bigger page size. The PTE_PS flag with 1 in PDE indicates that the PDE
+is the lowest level of the page translation, which makes the page size
+equals to 2^9*2^12 = 2^21 = 2MB. In long-mode when the processor
+encounters a page directory entry with PTE_PS = 1, the virtual address
+translation becomes:
+
++---9----+-------9--------+-------9--------+------21-----+
+|  PML4  | Page Directory | Page Directory |    Offset   |
+| Offset | Pointer Offset |     Offset     | within Page |
++--------+----------------+----------------+-------------+
+
+The virtual and physical address of 2MB page must aligned to 2MB
+(obviously since the lowest 21 bits represent the offset with page).
+In "pmaputils.c" we define function page_contiguous_block() to get
+contiguous and aligned block from free page list. The 512 small pages
+in the block remain their pointer field pp_link to help the page_free()
+remove the 2MB page correctly.
+
+We modify the boot_map_region() function to check whether kernel can
+alloc a 2MB page rather than 512 small pages, and use the pgdir_walk()
+function to alloc a 2MB page then set the PDE.PTE_PS to 1.
+
+The check_va2pa() function does not consider the PTE_PS flag, so we
+also modify this function to make it support this feature. Now the
+check_xxxxx() functions works fine under our mix-sized paging.
+
+You can turn on/off this feature by the pte_ps_flag variable in pmap.c.
+To compare the difference, use our monitor tools 'pageinfo'. When the
+PS feature is open, the page number used for translation reduces from
+133 to 5.
+
+PS off: 1 pml4 entries, 1 pdp entries, 130 pd entries and 66064 pt entries.
+        0 1GB pages, 0 2MB pages, 66064 4KB pages (66064 pages in total).
+        133 pages are used for paging translation.
+PS on : 1 pml4 entries, 1 pdp entries, 130 pd entries and 528 pt entries.
+        0 1GB pages, 128 2MB pages, 528 4KB pages (656 pages in total).
+        5 pages are used for paging translation.
+
+Note: After Challenge 4, the number of the pages are used for paging
+      translation turns to 7. This is because we use extra memory space
+      to store virtual maps.
+
+Note: When we merge the code of challenge problems into Lab5-handin, the
+      number are 135 vs 13.
+
+---------------------------------------------------------------------
+Lab 2 Challenge 2:
+
+In "mmutils.c" we provide some commands to help debug JOS:
+
+1.  pageinfo
+    This command displays the basic paging information of current (kernel)
+    address space, including location of PML4 table, CR4 register, numbers
+    of table entries and numbers of pages.
+
+2.  showmaps
+    Example: showmaps 0x8000a00000 0x8000c00000
+    This command displays all mappings within the given virtual address
+    range.
+
+3.  setmap
+    Example: setmap 0x8000a00000 0x8000c00000 -set PTE_W -clr PTE_D PTE_PCD
+    This command changes the permission flag of all mappings within the
+    range.
+
+4.  dumpmem
+    Example: dumpmem -v 0x8000a00000 0x8000a01000
+    This command dumps the contents in the memory range.
+
+5.  binfo
+    Example: binfo
+    This command show our allocated blocks in JOS. The mappings are
+    stored in our structure BlockInfo created for challenge 4.
+
+You can just type the command in the console to see the instruction.
+
+---------------------------------------------------------------------
+Lab 2 Challenge 3:
+
+There are some pages belong to the kernel in user environments. For example,
+since the CPU uses linear addresses for IDT, GDT, TSS and syscall/sysext,
+the GDT and IDT must be in the virtual address space.
+In order to allow user environments to unrestrictly use full 4GB virtual
+address space, we can rewrite the protection fault exception handler. The
+idea is when user processes try to access a kernel page, it raise the
+protection fault then we can handle this in the handler.
+For example, a user process tries to alloc/access a virtual address where our
+IDT is mapped. This raises a protection fault, and in the handler we try to
+do the following things:
+    1.  Find an unused virtual page (if there is no free virtual page, try
+        to write one unimportant page into the disk, store this information)
+    2.  Change the mapping of the IDT to this unused page in virtual space
+    3.  Change the registers to new address if necessary (in this case, change
+        idtr)
+    4.  Return and alloc/access the virtual address as normal
+
+TRANSFER FROM USER MODE TO KERNEL MODE (Processor and Kernel)
+
+This transition happens when an interrupt or exception raises. We take an "int"
+instruction as example, the processor generally do the following things:
+    1.  Push the current execute address into the stack (cs, eip)
+    2.  Use the idtr register to get the n-th descriptor from IDT
+    3.  Check the permission (privilege level)
+    4.  Dump the register state of user process to the kernel's stack
+    5.  Jump to the entry specified in the interrupt descriptor
+Now the kernel has the control flow:
+    1.  Since the user environments may have a different gdtr, idtr and tr,
+        modify these registers to correct addresses under kernel's virtual
+        address space (we save these registers' value somewhere)
+    2.  Since the user environments may have different virtual address mappings
+        in kernel space, load the kernel page table base boot_pml4e into cr3.
+        And flush the TLB
+    3.  Do whatever the interrupt handler need to do
+
+TRANSFER FROM KERNEL MODE TO USER MODE (Processor and Kernel)
+
+When the handler finish its task and wants to return to user process, the kernel
+do the following:
+    1.  Scheduler decides which environment to execute
+    2.  Load the saved cr3, gdt, idt and tr registers of user environment and
+        flush the TLB
+    3.  Use "iret" instruction to jump back to user mode
+The processor will use the cs and eip from the stack to resume the execution of
+user environment.
+
+ACCESS PHYSICAL MEMORY AND I/O DEVICES
+
+Kernel has ring 0 privilege so it can use privileged instructions to access the
+I/O devices. If the kernel wants to access physical memory, it can map the virtual
+addresses to the same physical addresses. Or just do the mapping calculating.
+
+ACCESS USER ENVIRONMENT'S VIRTUAL ADDRESS SPACE
+
+When the kernel alloc the page table for the user environment, it records the page
+table location. So the kernel can easily access any environment's virtual address
+space.
+
+ADVANTAGES AND DISVANTAGES
+
++ Flexibility
+This design allows the user process to access full 4GB virtual address, so the
+design of the programs become more flexible. It also support the programs that need
+very large memory address.
+
+- Performance
+Whenever a user process tries to access a virtual address that belongs to the kernel,
+the kernel needs to swap the page out and change the mapping. It becomes worse when
+there is no free virtual page and the kernel need to swap out an unimportant page to
+the disk.
+Although this happens rarely, there are extra operations of save/load registers (cr3,
+gdtr, idtr, tr) in all interrupt handler. The performance of this scheme is clearly
+low.
+
+- Complexity
+Obviously we need to do extra bookkeepings on the user environment's gdtr, idtr and
+tr. And also the swapped out pages that written to the disk. We need to write code
+to bookkeep those registers and implement a mechanism to swap the page into the disk
+correctly. It definitely increases the complexity of the kernel.
+
+
+---------------------------------------------------------------------
+Lab 2 Challenge 4:
+
+In "pmaputils.c" we provide a series of functions to malloc/free physically
+contiguous buffers larger than 4KB.
+
+We need to store the size of the blocks. Struct BlockInfo is defined in
+"pmaputils.h". A BlockInfo contains the start and end virtual address of the
+block, the physical address and permission.
+
+Considering the large buffer allocation request is not frequent, we store
+the BlockInfo entries in a list. The operations on BlockInfo list will
+take O(n) time.
+
+API:
+
++ void *b_malloc(size_t n);
+
+  The b_malloc() function allocates <n> bytes and returns a pointer to the
+  allocated memory. <n> will be rounded up to a power-of-two number and is
+  at least 4096. If there is a physically contiguous block of size n, then
+  b_malloc() returns the virtual address of allocated memory.
+
++ void b_free(void *va);
+
+  The b_free() function frees the memory space pointed to by <va>. b_free()
+  will check the validity of <va>.
+
++ int b_split(void *va, int split, void **ptr);
+
+  The b_split() function splits the memory space pointed to by <va> to
+  <split> equal pieces. If the space is sucessfully splited, b_split() fills
+  the <ptr> array and returns 0. Otherwise, b_split() returns:
+    -1 if <split> is less than 2 or not a power-of-two number
+    -2 if <va> is invalid,
+    -3 if <split> is too big,
+    -4 if the space pointed to is kernel space
+  Note: b_split() will split the 2MB page into 512 4KB pages if the unit size
+        is less than 2MB. See "pmaputils.c" for more details.
+
++ void *b_coalesce(int coalesce, void **ptr);
+
+  The b_coalesce() function coalesces the memory space pointed by <ptr> array
+  to one block. <coalesce> is the length of the array. If the <ptr> is valid
+  and contiguous, b_coalesce() returns the pointer to the coalesced block.
+  Note: b_coalesce() will try to use 2MB page when possible.
+
+Brief description of other functions in "pmaputils.c":
+  Prefix "page_": PageInfo or PageTable related functions
+                  { page_contiguous_block,
+                    page_contiguous_alloc,
+                    page_incref,
+                    page_free_list_reorder,
+                    page_update }
+  Prefix "b_"   : Contiguous pages related functions
+                  { b_malloc,
+                    b_free,
+                    b_split,
+                    b_coalesce }
+  Prefix "bi_"  : Block Info related functions
+                  { bi_init,
+                    bi_lookup,
+                    bi_insert,
+                    bi_delete,
+                    bi_block }
+We also provide check function check_b_utils() to check the contiguous pages
+functions to work correctly. This function uses our API to malloc 2 blocks.
+One is a 32KB block, containing eight 4KB pages. The other is an 8MB block,
+containing four 2MB pages. It also tests the split and coalesce features.
+During spliting and coalescing of the 8MB block, the page number and size
+will change accordingly. See more details in "pmaputils.c".
+

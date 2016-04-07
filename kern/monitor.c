@@ -33,7 +33,7 @@ static struct Command commands[] = {
 	{ "showmaps", "Display the mappings within the range", mon_mm_showmaps},
 	{ "setmap", "Set the mapping permission", mon_mm_setmap},
 	{ "dumpmem", "Dump memory at virtual or physical address", mon_mm_dumpmem},
-	{ "vmap", "Show the VirtualMap entries", mon_mm_vmap},
+	{ "binfo", "Show the BlockInfo entries", mon_mm_binfo},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
