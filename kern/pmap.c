@@ -12,7 +12,7 @@
 #include <kern/env.h>
 #include <kern/cpu.h>
 #include <kern/pmaputils.h>
-int mm_pageinfo();
+
 extern uint64_t pml4phys;
 #define BOOT_PAGE_TABLE_START ((uint64_t) KADDR((uint64_t) &pml4phys))
 #define BOOT_PAGE_TABLE_END   ((uint64_t) KADDR((uint64_t) (&pml4phys) + 5*PGSIZE))

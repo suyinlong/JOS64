@@ -22,28 +22,40 @@
  *   void NAME();
  * where NAME is the argument passed to TRAPHANDLER.
  */
-#define TRAPHANDLER(name, num)						\
+
+// rewrite by Yinlong Su @ Apr 7th
+// add data to table
+#define TRAPHANDLER(num, istrap, name, user)					\
+.text;															\
 	.globl name;		/* define global symbol for 'name' */	\
 	.type name, @function;	/* symbol type is function */		\
-	.align 2;		/* align function definition */		\
-	name:			/* function starts here */		\
-	pushq $(num);							\
-	jmp _alltraps
+	.align 2;		/* align function definition */				\
+	name:			/* function starts here */					\
+	pushq $(num);												\
+	jmp _alltraps;												\
+.data;															\
+	.quad num, istrap, name, user
+
 
 /* Use TRAPHANDLER_NOEC for traps where the CPU doesn't push an error code.
  * It pushes a 0 in place of the error code, so the trap frame has the same
  * format in either case.
  */
-#define TRAPHANDLER_NOEC(name, num)					\
-	.globl name;							\
-	.type name, @function;						\
-	.align 2;							\
-	name:								\
-	pushq $0;							\
-	pushq $(num);							\
-	jmp _alltraps
 
-.text
+// rewrite by Yinlong Su @ Apr 7th
+// add data to table
+#define TRAPHANDLER_NOEC(num, istrap, name, user)	\
+.text;												\
+	.globl name;									\
+	.type name, @function;							\
+	.align 2;										\
+	name:											\
+	pushq $0;										\
+	pushq $(num);									\
+	jmp _alltraps;									\
+.data;												\
+	.quad num, istrap, name, user
+
 
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
@@ -51,37 +63,48 @@
    pusha,popa so you will find these macros handy.
  */
 
+// added by Yinlong Su @ Apr 7th
+// symbol : entry_array (used by trap_init() in trap.c)
+.data
+	.globl entry_array
+	entry_array:
+
 	// Macros are referred from inc/trap.h
 	// See Intel IA-32 Developer's Manual Table 5-1
-	TRAPHANDLER_NOEC(__trap_divide, T_DIVIDE)
-	TRAPHANDLER_NOEC(__trap_debug, T_DEBUG)
-	TRAPHANDLER_NOEC(__trap_nmi, T_NMI)
-	TRAPHANDLER_NOEC(__trap_brkpt, T_BRKPT)
-	TRAPHANDLER_NOEC(__trap_oflow, T_OFLOW)
-	TRAPHANDLER_NOEC(__trap_bound, T_BOUND)
-	TRAPHANDLER_NOEC(__trap_illop, T_ILLOP)
-	TRAPHANDLER_NOEC(__trap_device, T_DEVICE)
-	TRAPHANDLER(__trap_dblflt, T_DBLFLT)
+	TRAPHANDLER_NOEC(T_DIVIDE, 0, __trap_divide, 0)
+	TRAPHANDLER_NOEC(T_DEBUG, 0, __trap_debug, 0)
+	TRAPHANDLER_NOEC(T_NMI, 0, __trap_nmi, 0)
+	TRAPHANDLER_NOEC(T_BRKPT, 0, __trap_brkpt, 3)
+	TRAPHANDLER_NOEC(T_OFLOW, 0, __trap_oflow, 0)
+	TRAPHANDLER_NOEC(T_BOUND, 0, __trap_bound, 0)
+	TRAPHANDLER_NOEC(T_ILLOP, 0, __trap_illop, 0)
+	TRAPHANDLER_NOEC(T_DEVICE, 0, __trap_device, 0)
+	TRAPHANDLER(T_DBLFLT, 0,__trap_dblflt, 0)
 	//TRAPHANDLER_NOEC(__trap_coproc, T_COPROC)
-	TRAPHANDLER(__trap_tss, T_TSS)
-	TRAPHANDLER(__trap_segnp, T_SEGNP)
-	TRAPHANDLER(__trap_stack, T_STACK)
-	TRAPHANDLER(__trap_gpflt, T_GPFLT)
-	TRAPHANDLER(__trap_pgflt, T_PGFLT)
-	//TRAPHANDLER_NOEC(__trap_res, T_RES)
-	TRAPHANDLER_NOEC(__trap_fperr, T_FPERR)
-	TRAPHANDLER(__trap_align, T_ALIGN)
-	TRAPHANDLER_NOEC(__trap_mchk, T_MCHK)
-	TRAPHANDLER_NOEC(__trap_simderr, T_SIMDERR)
-	TRAPHANDLER_NOEC(__trap_syscall, T_SYSCALL)
+	TRAPHANDLER(T_TSS, 0, __trap_tss, 0)
+	TRAPHANDLER(T_SEGNP, 0, __trap_segnp, 0)
+	TRAPHANDLER(T_STACK, 0, __trap_stack, 0)
+	TRAPHANDLER(T_GPFLT, 0, __trap_gpflt, 0)
+	TRAPHANDLER(T_PGFLT, 0, __trap_pgflt, 0)
+	//TRAPHANDLER_NOEC(T_RES, 0, __trap_res, 0)
+	TRAPHANDLER_NOEC(T_FPERR, 0, __trap_fperr, 0)
+	TRAPHANDLER(T_ALIGN, 0, __trap_align, 0)
+	TRAPHANDLER_NOEC(T_MCHK, 0, __trap_mchk, 0)
+	TRAPHANDLER_NOEC(T_SIMDERR, 0, __trap_simderr, 0)
+	TRAPHANDLER_NOEC(T_SYSCALL, 0, __trap_syscall, 3)
 
 	// note: modified for LAB4
-	TRAPHANDLER_NOEC(__irq_timer, IRQ_OFFSET + IRQ_TIMER)
-	TRAPHANDLER_NOEC(__irq_kbd, IRQ_OFFSET + IRQ_KBD)
-	TRAPHANDLER_NOEC(__irq_serial, IRQ_OFFSET + IRQ_SERIAL)
-	TRAPHANDLER_NOEC(__irq_spurious, IRQ_OFFSET + IRQ_SPURIOUS)
-	TRAPHANDLER_NOEC(__irq_ide, IRQ_OFFSET + IRQ_IDE)
-	TRAPHANDLER_NOEC(__irq_error, IRQ_OFFSET + IRQ_ERROR)
+	TRAPHANDLER_NOEC(IRQ_OFFSET + IRQ_TIMER, 0, __irq_timer, 0)
+	TRAPHANDLER_NOEC(IRQ_OFFSET + IRQ_KBD, 0, __irq_kbd, 0)
+	TRAPHANDLER_NOEC(IRQ_OFFSET + IRQ_SERIAL, 0, __irq_serial, 0)
+	TRAPHANDLER_NOEC(IRQ_OFFSET + IRQ_SPURIOUS, 0, __irq_spurious, 0)
+	TRAPHANDLER_NOEC(IRQ_OFFSET + IRQ_IDE, 0, __irq_ide, 0)
+	TRAPHANDLER_NOEC(IRQ_OFFSET + IRQ_ERROR, 0, __irq_error, 0)
+
+// added by Yinlong Su @ Apr 7th
+// end flag of entry_array
+.data
+	.quad 0, 0, 0, 0
 
 /*
  * Lab 3: Your code here for _alltraps
@@ -89,6 +112,7 @@
  * Hint: Be sure to review the x64 calling convention from lab1
  *       for how to pass a pointer to the trapframe.
  */
+.text
 .globl _alltraps
 _alltraps:
 	subq $16, %rsp

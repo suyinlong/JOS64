@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-07 12:38:27
+* @Last Modified time: 2016-04-07 19:25:57
 */
 
 #include <inc/stdio.h>
@@ -25,6 +25,19 @@ extern size_t npages;
 
 extern struct BlockInfo *bis;
 extern struct BlockInfo *bis_end;
+
+uint64_t mm_getdec(const char *str) {
+    uint64_t x = 0;
+
+    while (*str != '\0') {
+        x *= 10;
+        if (str[0] >= '0' && str[0] <= '9')
+            x += str[0] - '0';
+        str++;
+    }
+
+    return x;
+}
 
 uint64_t mm_gethex(const char *str) {
     uint64_t x = 0;
@@ -213,6 +226,73 @@ int mm_binfo(int pflag) {
     return count;
 }
 
+int mm_bmalloc(size_t n) {
+    void *va = b_malloc(n);
+    if (va) {
+        cprintf("  Malloc: \033[0;33m0x%016x\033[0m\n", va);
+        struct BlockInfo *bie = bi_lookup(va);
+        cprintf("        [ 0x%016x - 0x%016x ] @ physaddr 0x%016x, %d pages\n", bie->start, bie->end, bie->addr, mm_showmaps((uint64_t)bie->start, (uint64_t)bie->end, 0));
+        return 0;
+    }
+    else {
+        cprintf("  \033[0;31mCan not malloc.\033[0m\n");
+        return -1;
+    }
+}
+
+int mm_bfree(void* va) {
+    b_free(va);
+    cprintf("  Free: \033[0;33m0x%016x\033[0m\n", va);
+    return 0;
+}
+
+int mm_bsplit(void *va, int split) {
+    if (split > 64) {
+        cprintf("  \033[0;31mSplit number too large.\033[0m\n");
+        return -1;
+    }
+    struct BlockInfo *bie = bi_lookup(va);
+    void *start = bie->start, *end = bie->end;
+    void *ptr[64];
+    cprintf("  Split [ 0x%016x - 0x%016x ] into %d pieces.\n", start, end, split);
+    int r = b_split(va, split, &ptr[0]), i = 0;
+
+    switch (r) {
+        case 0:
+        cprintf("      ");
+        for (i = 0; i < split; i++)
+            cprintf(" 0x%016x", ptr[i]);
+        cprintf("\n");
+        break;
+
+        case -1:
+        cprintf("  \033[0;31mSplit number too small or is not a power-to-two number.\033[0m\n");
+        break;
+
+        case -2:
+        cprintf("  \033[0;31mTarget block does not exist.\033[0m\n");
+        break;
+
+        case -3:
+        cprintf("  \033[0;31mSplit number too large.\033[0m\n");
+        break;
+
+        case -4:
+        cprintf("  \033[0;31mPermission denied.\033[0m\n");
+        break;
+    }
+    return r;
+}
+
+int mm_bcoalesce(int coalesce, void **ptr) {
+    void *va = b_coalesce(coalesce, &ptr[0]);
+    if (va)
+        cprintf("  Coalesce: \033[0;33m0x%016x\033[0m\n", va);
+    else
+        cprintf("  \033[0;31mCoalesce failed.\033[0m\n");
+    return 0;
+}
+
 int mon_mm_pageinfo(int argc, char **argv, struct Trapframe *tf) {
     return mm_pageinfo();
 }
@@ -235,7 +315,7 @@ bad_input_showmaps:
     cprintf("Usage: showmaps START_ADDRESS [END_ADDRESS]\n");
     cprintf("Example: showmaps 0x8000a00000 0x8000c00000\n\n");
     cprintf("ADDRESS: Use virtual address, hex presentation\n");
-    return -1;
+    return 0;
 }
 
 int mon_mm_setmap(int argc, char **argv, struct Trapframe *tf) {
@@ -323,8 +403,7 @@ bad_input_setmaps:
     cprintf("  PTE_D\tDirty\n");
     cprintf("  PTE_PS\tPage Size\n\n");
     cprintf("The same flag cannot be in operation set and clr at the same time.\n");
-
-    return -1;
+    return 0;
 }
 
 int mon_mm_dumpmem(int argc, char **argv, struct Trapframe *tf) {
@@ -350,11 +429,77 @@ bad_input_dumpmem:
     cprintf("Types:\n");
     cprintf("  -v\tuse virtual address\n");
     cprintf("  -p\tuse physical address\n");
-
-    return -1;
+    return 0;
 }
 
 int mon_mm_binfo(int argc, char **argv, struct Trapframe *tf) {
     mm_binfo(1);
+    return 0;
+}
+
+int mon_mm_bmalloc(int argc, char **argv, struct Trapframe *tf) {
+    if (argc != 2)
+        goto bad_input_bmalloc;
+    int n = mm_getdec(argv[1]);
+    return mm_bmalloc(n);
+
+bad_input_bmalloc:
+    cprintf("Usage: bmalloc BLOCK_SIZE\n");
+    cprintf("Example: bmalloc 16384\n");
+    return 0;
+}
+
+int mon_mm_bfree(int argc, char **argv, struct Trapframe *tf) {
+    if (argc != 2 || argv[1][0] != '0' || argv[1][1] != 'x')
+        goto bad_input_bfree;
+    uint64_t va = mm_gethex(argv[1] + 2);
+    return mm_bfree((void *)va);
+
+bad_input_bfree:
+    cprintf("Usage: bfree BLOCK_ADDRESS\n");
+    cprintf("Example: bfree 0x9000000000\n");
+    cprintf("ADDRESS: Use virtual address, hex presentation\n");
+    return 0;
+}
+
+int mon_mm_bsplit(int argc, char **argv, struct Trapframe *tf) {
+    if (argc != 3 || argv[1][0] != '0' || argv[1][1] != 'x')
+        goto bad_input_bsplit;
+    uint64_t va = mm_gethex(argv[1] + 2), split = mm_getdec(argv[2]);
+
+    return mm_bsplit((void *)va, (int)split);
+
+bad_input_bsplit:
+    cprintf("Usage: bsplit BLOCK_ADDRESS SPLIT_NUMBER\n");
+    cprintf("Example: bsplit 0x9000000000 8\n");
+    cprintf("ADDRESS: Use virtual address, hex presentation\n");
+    return 0;
+}
+
+int mon_mm_bcoalesce(int argc, char **argv, struct Trapframe *tf) {
+    if (argc < 2)
+        goto bad_input_bcoalesce;
+
+    uint64_t coalesce = mm_getdec(argv[1]);
+    if (argc != coalesce + 2)
+        goto bad_input_bcoalesce;
+    if (coalesce > 64) {
+        cprintf("  \033[0;31mCoalesce number too large.\033[0m\n");
+        return -1;
+    }
+
+    uint64_t i;
+    void *ptr[64];
+    for (i = 2; i < coalesce + 2; i++) {
+        if (argv[i][0] != '0' || argv[i][1] != 'x')
+            goto bad_input_bcoalesce;
+        ptr[i - 2] = (void *)mm_gethex(argv[i] + 2);
+    }
+    return mm_bcoalesce(coalesce, ptr);
+
+bad_input_bcoalesce:
+    cprintf("Usage: bcoalesce COALESCE_NUMBER BLOCK_ADDRESS_1 ... BLOCK_ADDRESS_N\n");
+    cprintf("Example: bcoalesce 4 0x9000000000 0x9000001000 0x9000002000 0x9000003000\n");
+    cprintf("ADDRESS: Use virtual address, hex presentation\n");
     return 0;
 }

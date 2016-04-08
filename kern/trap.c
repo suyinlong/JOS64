@@ -71,95 +71,24 @@ void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
+	// ********************************
+	// Challenge 1 of Lab 3
+	// Use the entry table we created in trapentry.S
+	// to SETGATE
+	// ********************************
+	extern uint64_t entry_array[][4];
+	int i;
 
-	// LAB 3: Your code here.
+	for (i = 0; entry_array[i][2] != 0; i++)
+		SETGATE(
+			idt[entry_array[i][0]],
+			entry_array[i][1],
+			GD_KT,
+			entry_array[i][2],
+			entry_array[i][3]
+		);
 
-	// declarations of trap handlers
-	extern void __trap_divide();
-	extern void __trap_debug();
-	extern void __trap_nmi();
-	extern void __trap_brkpt();
-	extern void __trap_oflow();
-	extern void __trap_bound();
-	extern void __trap_illop();
-	extern void __trap_device();
-	extern void __trap_dblflt();
-	//extern void __trap_coproc();
-	extern void __trap_tss();
-	extern void __trap_segnp();
-	extern void __trap_stack();
-	extern void __trap_gpflt();
-	extern void __trap_pgflt();
-	//extern void __trap_res();
-	extern void __trap_fperr();
-	extern void __trap_align();
-	extern void __trap_mchk();
-	extern void __trap_simderr();
-	extern void __trap_syscall();
 
-	// set gate descriptors - LAB4 version
-	SETGATE(idt[T_DIVIDE], 0, GD_KT, __trap_divide, 0);
-	SETGATE(idt[T_DEBUG], 0, GD_KT, __trap_debug, 0);
-	SETGATE(idt[T_NMI], 0, GD_KT, __trap_nmi, 0);
-	SETGATE(idt[T_BRKPT], 0, GD_KT, __trap_brkpt, 3);
-	SETGATE(idt[T_OFLOW], 0, GD_KT, __trap_oflow, 0);
-	SETGATE(idt[T_BOUND], 0, GD_KT, __trap_bound, 0);
-	SETGATE(idt[T_ILLOP], 0, GD_KT, __trap_illop, 0);
-	SETGATE(idt[T_DEVICE], 0, GD_KT, __trap_device, 0);
-	SETGATE(idt[T_DBLFLT], 0, GD_KT, __trap_dblflt, 0);
-	//SETGATE(idt[T_COPROC], 0, GD_KT, __trap_coproc, 0);
-	SETGATE(idt[T_TSS], 0, GD_KT, __trap_tss, 0);
-	SETGATE(idt[T_SEGNP], 0, GD_KT, __trap_segnp, 0);
-	SETGATE(idt[T_STACK], 0, GD_KT, __trap_stack, 0);
-	SETGATE(idt[T_GPFLT], 0, GD_KT, __trap_gpflt, 0);
-	SETGATE(idt[T_PGFLT], 0, GD_KT, __trap_pgflt, 0);
-	//SETGATE(idt[T_RES], 0, GD_KT, __trap_res, 0);
-	SETGATE(idt[T_FPERR], 0, GD_KT, __trap_fperr, 0);
-	SETGATE(idt[T_ALIGN], 0, GD_KT, __trap_align, 0);
-	SETGATE(idt[T_MCHK], 0, GD_KT, __trap_mchk, 0);
-	SETGATE(idt[T_SIMDERR], 0, GD_KT, __trap_simderr, 0);
-	SETGATE(idt[T_SYSCALL], 0, GD_KT, __trap_syscall, 3);
-
-	// note: code below is added for LAB4
-	extern void __irq_timer();
-	extern void __irq_kbd();
-	extern void __irq_serial();
-	extern void __irq_spurious();
-	extern void __irq_ide();
-	extern void __irq_error();
-
-	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, __irq_timer, 0);
-	SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, __irq_kbd, 0);
-	SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT, __irq_serial, 0);
-	SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS], 0, GD_KT, __irq_spurious, 0);
-	SETGATE(idt[IRQ_OFFSET + IRQ_IDE], 0, GD_KT, __irq_ide, 0);
-	SETGATE(idt[IRQ_OFFSET + IRQ_ERROR], 0, GD_KT, __irq_error, 0);
-
-	/*
-	// note: not sure what happened here but must modify to LAB4 version
-	// set gate descriptors: see IA-32 Manual Table 5-1
-	SETGATE(idt[T_DIVIDE], 1, GD_KT, __trap_divide, 0);
-	SETGATE(idt[T_DEBUG], 1, GD_KT, __trap_debug, 0);
-	SETGATE(idt[T_NMI], 0, GD_KT, __trap_nmi, 0);
-	SETGATE(idt[T_BRKPT], 1, GD_KT, __trap_brkpt, 3);
-	SETGATE(idt[T_OFLOW], 1, GD_KT, __trap_oflow, 0);
-	SETGATE(idt[T_BOUND], 1, GD_KT, __trap_bound, 0);
-	SETGATE(idt[T_ILLOP], 1, GD_KT, __trap_illop, 0);
-	SETGATE(idt[T_DEVICE], 1, GD_KT, __trap_device, 0);
-	SETGATE(idt[T_DBLFLT], 1, GD_KT, __trap_dblflt, 0);
-	//SETGATE(idt[T_COPROC], 1, GD_KT, __trap_coproc, 0);
-	SETGATE(idt[T_TSS], 1, GD_KT, __trap_tss, 0);
-	SETGATE(idt[T_SEGNP], 1, GD_KT, __trap_segnp, 0);
-	SETGATE(idt[T_STACK], 1, GD_KT, __trap_stack, 0);
-	SETGATE(idt[T_GPFLT], 1, GD_KT, __trap_gpflt, 0);
-	SETGATE(idt[T_PGFLT], 1, GD_KT, __trap_pgflt, 0);
-	//SETGATE(idt[T_RES], 1, GD_KT, __trap_res, 0);
-	SETGATE(idt[T_FPERR], 1, GD_KT, __trap_fperr, 0);
-	SETGATE(idt[T_ALIGN], 1, GD_KT, __trap_align, 0);
-	SETGATE(idt[T_MCHK], 1, GD_KT, __trap_mchk, 0);
-	SETGATE(idt[T_SIMDERR], 1, GD_KT, __trap_simderr, 0);
-	SETGATE(idt[T_SYSCALL], 0, GD_KT, __trap_syscall, 3);
-	*/
 
 	idt_pd.pd_lim = sizeof(idt)-1;
 	idt_pd.pd_base = (uint64_t)idt;

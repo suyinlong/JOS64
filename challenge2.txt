@@ -2,6 +2,8 @@ List challenge problems completed as part of the lab 2 handin, as well
 as the problem number.  If you worked any previous lab challenges and
 submitted them with this lab, list them here, along with the lab number.
 
+Finish 1, 2, 3, 4 of Lab 2
+
 ---------------------------------------------------------------------
 Lab 2 Challenge 1:
 
@@ -75,10 +77,18 @@ In "mmutils.c" we provide some commands to help debug JOS:
     Example: dumpmem -v 0x8000a00000 0x8000a01000
     This command dumps the contents in the memory range.
 
-5.  binfo
+5.  binfo, bmalloc, bfree, bsplit, bcoalesce
     Example: binfo
-    This command show our allocated blocks in JOS. The mappings are
-    stored in our structure BlockInfo created for challenge 4.
+             bmalloc 16384
+             bfree 0x9000000000
+             bsplit 0x9000000000 4
+             bcoalesce 4 0x9000000000 0x9000001000 0x9000002000 0x9000003000
+    These command provide direct access to use our contiguous block functions.
+    binfo shows all mappings of blocks. bmalloc can allocate one physically
+    contiguous block with given size in bytes. bfree frees one allocated block.
+    bsplit command splits a block into equal pieces. And bcoalesce can coalesce
+    contiguous blocks into one large block.
+    See Challenge 4 for more details.
 
 You can just type the command in the console to see the instruction.
 

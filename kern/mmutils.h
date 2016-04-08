@@ -4,6 +4,10 @@ int mon_mm_showmaps(int argc, char **argv, struct Trapframe *tf);
 int mon_mm_setmap(int argc, char **argv, struct Trapframe *tf);
 int mon_mm_dumpmem(int argc, char **argv, struct Trapframe *tf);
 int mon_mm_binfo(int argc, char **argv, struct Trapframe *tf);
+int mon_mm_bmalloc(int argc, char **argv, struct Trapframe *tf);
+int mon_mm_bfree(int argc, char **argv, struct Trapframe *tf);
+int mon_mm_bsplit(int argc, char **argv, struct Trapframe *tf);
+int mon_mm_bcoalesce(int argc, char **argv, struct Trapframe *tf);
 
 pte_t *pml4e_walk(pml4e_t *pml4e, const void *va, int create);
 

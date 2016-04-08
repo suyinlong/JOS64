@@ -34,6 +34,10 @@ static struct Command commands[] = {
 	{ "setmap", "Set the mapping permission", mon_mm_setmap},
 	{ "dumpmem", "Dump memory at virtual or physical address", mon_mm_dumpmem},
 	{ "binfo", "Show the BlockInfo entries", mon_mm_binfo},
+	{ "bmalloc", "Malloc a contiguous block", mon_mm_bmalloc},
+	{ "bfree", "Free a contiguous block", mon_mm_bfree},
+	{ "bsplit", "Split a contiguous block into equal pieces", mon_mm_bsplit},
+	{ "bcoalesce", "Coalesce several blocks into one block", mon_mm_bcoalesce},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
