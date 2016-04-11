@@ -81,7 +81,9 @@ sched_halt(void)
 	xchg(&thiscpu->cpu_status, CPU_HALTED);
 
 	// Release the big kernel lock as if we were "leaving" the kernel
-	unlock_kernel();
+	//unlock_kernel();
+	//cprintf("unlock in sched_halt()\n");
+	unlock_g(GLOCK_PGA | GLOCK_SCH);
 
 	// Reset stack pointer, enable interrupts and then halt.
 	asm volatile (

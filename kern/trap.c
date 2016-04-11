@@ -276,8 +276,12 @@ trap(struct Trapframe *tf)
 
 	// Re-acqurie the big kernel lock if we were halted in
 	// sched_yield()
-	if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED)
-		lock_kernel();
+	if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED) {
+		//cprintf("lock in trap() : 1\n");
+		//lock_kernel();
+		lock_g(GLOCK_PGA | GLOCK_SCH);
+	}
+
 	// Check that interrupts are disabled.  If this assertion
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
@@ -288,7 +292,9 @@ trap(struct Trapframe *tf)
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
-		lock_kernel();
+		//lock_kernel();
+		//cprintf("lock in trap() : 2\n");
+		lock_g(GLOCK_PGA | GLOCK_SCH);
 
 		assert(curenv);
 

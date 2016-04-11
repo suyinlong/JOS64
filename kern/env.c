@@ -28,7 +28,7 @@ static struct Env *env_free_list;	// Free environment list
 // Set up global descriptor table (GDT) with separate segments for
 // kernel mode and user mode.  Segments serve many purposes on the x86.
 // We don't use any of their memory-mapping capabilities, but we need
-// them to switch privilege levels. 
+// them to switch privilege levels.
 //
 // The kernel and user segments are identical except for the DPL.
 // To load the SS register, the CPL must equal the DPL.  Thus,
@@ -59,7 +59,7 @@ struct Segdesc gdt[2*NCPU + 5] =
 	// Per-CPU TSS descriptors (starting from GD_TSS0) are initialized
 	// in trap_init_percpu()
 	[GD_TSS0 >> 3] = SEG_NULL,
-	
+
 	[6] = SEG_NULL //last 8 bytes of the tss since tss is 16 bytes long
 };
 
@@ -186,7 +186,7 @@ env_setup_vm(struct Env *e)
 	//    - The VA space of all envs is identical above UTOP
 	//	(except at UVPT, which we've set below).
 	//	See inc/memlayout.h for permissions and layout.
-	//	Hint: Figure out which entry in the pml4e maps addresses 
+	//	Hint: Figure out which entry in the pml4e maps addresses
 	//	      above UTOP.
 	//	(Make sure you got the permissions right in Lab 2.)
 	//    - The initial VA below UTOP is empty.
@@ -574,7 +574,9 @@ env_run(struct Env *e)
 	lcr3(curenv->env_cr3);
 
 	// note: release lock before switch to user mode in LAB4
-	unlock_kernel();
+	//unlock_kernel();
+	//cprintf("unlock in env_run()\n");
+	unlock_g(GLOCK_PGA | GLOCK_SCH);
 
 	env_pop_tf(&curenv->env_tf);
 	//panic("env_run not yet implemented");

@@ -13,3 +13,8 @@ a padding at the end of entry_array to indicate 'end of array'.
 Now in trap_init(), we only need to use a for-loop to install all the
 handlers.
 
+---------------------------------------------------------------------
+Challenge 2 of Lab 3
+
+Add simple debug command s (single step), c (continue)
+need to do further work
