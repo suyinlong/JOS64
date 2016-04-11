@@ -42,7 +42,7 @@ i386_init(void)
 	cprintf("6828 decimal is %o octal!\n", 6828);
 
 	extern char end[];
-	end_debug = read_section_headers((0x10000+KERNBASE), (uintptr_t)end); 
+	end_debug = read_section_headers((0x10000+KERNBASE), (uintptr_t)end);
 
 	// Lab 2 memory management initialization functions
 	x64_vm_init();
@@ -145,7 +145,7 @@ boot_aps(void)
 		if (c == cpus + cpunum())  // We've started already.
 			continue;
 
-		// Tell mpentry.S what stack to use 
+		// Tell mpentry.S what stack to use
 		mpentry_kstack = percpu_kstacks[c - cpus] + KSTKSIZE;
 		// Start the CPU at mpentry_start
 		lapic_startap(c->cpu_id, PADDR(code));
@@ -159,7 +159,7 @@ boot_aps(void)
 void
 mp_main(void)
 {
-	// We are in high EIP now, safe to switch to kern_pgdir 
+	// We are in high EIP now, safe to switch to kern_pgdir
 	lcr3(boot_cr3);
 	cprintf("SMP: CPU %d starting\n", cpunum());
 

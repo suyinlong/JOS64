@@ -14,6 +14,7 @@
 #include <kern/dwarf_api.h>
 #include <kern/trap.h>
 #include <kern/mmutils.h>
+#include <kern/disasm/disasm.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -38,6 +39,9 @@ static struct Command commands[] = {
 	{ "bfree", "Free a contiguous block", mon_mm_bfree},
 	{ "bsplit", "Split a contiguous block into equal pieces", mon_mm_bsplit},
 	{ "bcoalesce", "Coalesce several blocks into one block", mon_mm_bcoalesce},
+	{ "u", "u", disasm_u},
+	{ "s", "s", disasm_s},
+	{ "c", "c", disasm_c},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -160,8 +164,10 @@ monitor(struct Trapframe *tf)
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
 
-	if (tf != NULL)
-		print_trapframe(tf);
+	if (tf != NULL) {
+		//print_trapframe(tf);
+		cprintf("\033[0;33mReturn to kernel monitor due to: %s\033[0m\n", (tf->tf_trapno == 1) ? "Debug" : ((tf->tf_trapno == 3) ? "Breakpoint" : "\033[0;31mUnknown"));
+	}
 
 	while (1) {
 		buf = readline("K> ");

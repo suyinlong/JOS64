@@ -116,11 +116,11 @@ TRANSFER FROM USER MODE TO KERNEL MODE (Processor and Kernel)
 
 This transition happens when an interrupt or exception raises. We take an "int"
 instruction as example, the processor generally do the following things:
-    1.  Push the current execute address into the stack (cs, eip)
-    2.  Use the idtr register to get the n-th descriptor from IDT
-    3.  Check the permission (privilege level)
-    4.  Dump the register state of user process to the kernel's stack
-    5.  Jump to the entry specified in the interrupt descriptor
+    1.  Switch to the stack defined by the SS0 and RSP0 fields of the TSS
+    2.  Dump the register state of user process to the kernel's stack
+    3.  Use the idtr register to get the n-th descriptor from IDT
+    4.  Check the permission (privilege level)
+    5.  Jump to the entry specified in the interrupt descriptor (CS:RIP)
 Now the kernel has the control flow:
     1.  Since the user environments may have a different gdtr, idtr and tr,
         modify these registers to correct addresses under kernel's virtual

@@ -11,5 +11,5 @@ When using TRAPHANDLER and TRAPHANDLER_NOEC, the macros add a new entry
 to our global symbol 'entry_array' in the data segment. We also add
 a padding at the end of entry_array to indicate 'end of array'.
 Now in trap_init(), we only need to use a for-loop to install all the
-handler.
+handlers.
 

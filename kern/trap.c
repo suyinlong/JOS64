@@ -210,6 +210,9 @@ trap_dispatch(struct Trapframe *tf)
 		case T_BRKPT:
 			monitor(tf);
 			return;
+		case T_DEBUG:
+			monitor(tf);
+			return;
 		case T_SYSCALL:
 			tf->tf_regs.reg_rax = syscall(tf->tf_regs.reg_rax, tf->tf_regs.reg_rdx, tf->tf_regs.reg_rcx,
 					tf->tf_regs.reg_rbx, tf->tf_regs.reg_rdi, tf->tf_regs.reg_rsi);

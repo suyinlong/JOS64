@@ -37,7 +37,8 @@ KERN_SRCFILES :=	kern/entry.S \
 			kern/libdwarf_loc.c \
 			kern/elf_rw.c \
 			kern/mmutils.c \
-			kern/pmaputils.c
+			kern/pmaputils.c \
+			kern/disasm/disasm.c
 
 
 # Source files for LAB4
