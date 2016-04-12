@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-07 19:25:57
+* @Last Modified time: 2016-04-11 22:14:10
 */
 
 #include <inc/stdio.h>
@@ -10,6 +10,7 @@
 #include <inc/memlayout.h>
 #include <inc/assert.h>
 #include <inc/x86.h>
+#include <inc/env.h>
 
 #include <kern/console.h>
 #include <kern/monitor.h>
@@ -19,12 +20,15 @@
 #include <kern/mmutils.h>
 #include <kern/pmaputils.h>
 
+
 extern pml4e_t *boot_pml4e;        // Kernel's initial page directory
 extern physaddr_t boot_cr3;        // Physical address of boot time page directory
 extern size_t npages;
 
 extern struct BlockInfo *bis;
 extern struct BlockInfo *bis_end;
+
+extern struct Env *envs;
 
 uint64_t mm_getdec(const char *str) {
     uint64_t x = 0;
@@ -78,7 +82,7 @@ void mm_printmap(pte_t *ptep, const void *va) {
     }
 }
 
-int mm_pageinfo() {
+int mm_pinfo() {
     pml4e_t* pml4ep = boot_pml4e;
     pdpe_t *pdpep = NULL;
     pde_t *pdep = NULL;
@@ -293,8 +297,39 @@ int mm_bcoalesce(int coalesce, void **ptr) {
     return 0;
 }
 
-int mon_mm_pageinfo(int argc, char **argv, struct Trapframe *tf) {
-    return mm_pageinfo();
+int mm_einfo(int pflag) {
+    int count = 0, i;
+    if (pflag)
+        cprintf("  Environment Info:\n");
+    for (i = 0; i < NENV; i++) {
+        if (envs[i].env_status != ENV_FREE) {
+            count ++;
+            cprintf("  # ");
+            cprintf("ID: %08x ", envs[i].env_id);
+            cprintf("PID: %08x ", envs[i].env_parent_id);
+            cprintf("TYPE: %s ", envs[i].env_type == ENV_TYPE_USER ? "USER" : "-FS-");
+            cprintf("RUNS: %d ", envs[i].env_runs);
+            cprintf("CPU: %d ", envs[i].env_cpunum);
+            cprintf("PRIORITY: %d ", envs[i].priority);
+            cprintf("STATUS: %s\n",
+                envs[i].env_status == ENV_DYING ? "DYING" :
+                    (envs[i].env_status == ENV_RUNNABLE ? "RUNNABLE" :
+                        (envs[i].env_status == ENV_RUNNING ? "RUNNING" :
+                            (envs[i].env_status == ENV_NOT_RUNNABLE ? "NOT_RUNNABLE" : "ERROR"))));
+        }
+    }
+
+    if (pflag) {
+        if (count)
+            cprintf("  Found \033[0;33m%d\033[0m environments.\n", count);
+        else
+            cprintf("  Found no environment.\n");
+    }
+    return count;
+}
+
+int mon_mm_pinfo(int argc, char **argv, struct Trapframe *tf) {
+    return mm_pinfo();
 }
 
 int mon_mm_showmaps(int argc, char **argv, struct Trapframe *tf) {
@@ -501,5 +536,10 @@ bad_input_bcoalesce:
     cprintf("Usage: bcoalesce COALESCE_NUMBER BLOCK_ADDRESS_1 ... BLOCK_ADDRESS_N\n");
     cprintf("Example: bcoalesce 4 0x9000000000 0x9000001000 0x9000002000 0x9000003000\n");
     cprintf("ADDRESS: Use virtual address, hex presentation\n");
+    return 0;
+}
+
+int mon_mm_einfo(int argc, char **argv, struct Trapframe *tf) {
+    mm_einfo(1);
     return 0;
 }

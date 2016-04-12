@@ -60,18 +60,37 @@ void sched_swapqueue() {
 	sched_exp_queue = t;
 }
 
-// when an environment is freed, remove it from expired queue
+// when an environment is freed, remove it from runqueue
 void sched_free(struct Env *env) {
+	struct Env *e;
+
 	if (!env)
 		return;
-	struct Env *e = (struct Env *)(*(sched_exp_queue + env->priority));
-	if (e == env)
-		*(sched_exp_queue + env->priority) = (uint64_t) env->pri_link;
-	else {
-		while (e->pri_link != env)
-			e = e->pri_link;
-		e->pri_link = env->pri_link;
+
+	e = (struct Env *)(*(sched_exp_queue + env->priority));
+	if (e) {
+		if (e == env)
+			*(sched_exp_queue + env->priority) = (uint64_t) env->pri_link;
+		else {
+			while (e && e->pri_link != env)
+				e = e->pri_link;
+			if (e)
+				e->pri_link = env->pri_link;
+		}
 	}
+
+	e = (struct Env *)(*(sched_act_queue + env->priority));
+	if (e) {
+		if (e == env)
+			*(sched_act_queue + env->priority) = (uint64_t) env->pri_link;
+		else {
+			while (e && e->pri_link != env)
+				e = e->pri_link;
+			if (e)
+				e->pri_link = env->pri_link;
+		}
+	}
+
 	env->pri_link = NULL;
 }
 

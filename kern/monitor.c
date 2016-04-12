@@ -30,7 +30,7 @@ static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "backtrace", "Backtrace", mon_backtrace },
-	{ "pageinfo", "Display kernel page information", mon_mm_pageinfo},
+	{ "pageinfo", "Display kernel page information", mon_mm_pinfo},
 	{ "showmaps", "Display the mappings within the range", mon_mm_showmaps},
 	{ "setmap", "Set the mapping permission", mon_mm_setmap},
 	{ "dumpmem", "Dump memory at virtual or physical address", mon_mm_dumpmem},
@@ -42,6 +42,7 @@ static struct Command commands[] = {
 	{ "u", "u", disasm_u},
 	{ "s", "s", disasm_s},
 	{ "c", "c", disasm_c},
+	{ "einfo", "einfo", mon_mm_einfo}
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
