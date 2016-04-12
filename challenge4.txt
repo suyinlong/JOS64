@@ -31,6 +31,12 @@ sets the priority field of the environment structure then enqueue it into
 the runqueue of expired array. The macro ENV_CREATE is also modified to
 adapt to env_create(). The default priority (PRI_DEF) is 20.
 
+FORK AN ENVIRONMENT WITH PRIORITY
+
+By default, the child environment has the same priority of the parent
+environment. At the end of sys_exofork() the new environment will enqueue
+the runqueue of exipred array.
+
 FREE AN ENVIRONMENT WITH PRIORITY
 
 env_free() is modified to call function sched_free() to remove an

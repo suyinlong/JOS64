@@ -98,6 +98,12 @@ sys_exofork(void)
 	env->env_status = ENV_NOT_RUNNABLE;
 	env->env_parent_id = curenv->env_id;
 
+	// ****************************************
+	// For challenge 2 of Lab 4
+	// put the child environment into the runqueue
+	env->priority = curenv->priority;
+	sched_enqueue(env->priority, env);
+
 	return env->env_id;
 	//panic("sys_exofork not implemented");
 }

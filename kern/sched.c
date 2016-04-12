@@ -141,12 +141,18 @@ sched_yield(void)
 	int i, swap = 0;
 
 	while (swap == 0) {
-		for (i = 0; i < NSCH; i++) {
+		i = 0;
+		while (i < NSCH) {
 			// try to find a runnable environment
 			target = sched_dequeue(i);
-			if (target && target->env_status == ENV_RUNNABLE) {
-				// move the environment into the expired runqueue then run it
-				sched_enqueue(i, target);
+			if (!target) {
+				i++;
+				continue;
+			}
+			// move the environment info the expired runqueue
+			sched_enqueue(i, target);
+			// if the environment is runnable, run it
+			if (target->env_status == ENV_RUNNABLE) {
 				env_run(target);
 				return;
 			}

@@ -83,12 +83,22 @@ In "mmutils.c" we provide some commands to help debug JOS:
              bfree 0x9000000000
              bsplit 0x9000000000 4
              bcoalesce 4 0x9000000000 0x9000001000 0x9000002000 0x9000003000
-    These command provide direct access to use our contiguous block functions.
+    These commands provide direct access to use our contiguous block functions.
     binfo shows all mappings of blocks. bmalloc can allocate one physically
     contiguous block with given size in bytes. bfree frees one allocated block.
     bsplit command splits a block into equal pieces. And bcoalesce can coalesce
     contiguous blocks into one large block.
     See Challenge 4 for more details.
+
+6.  u, s, c
+    Example: u
+             s
+             c
+    These commands provide debug function for JOS. When the kernel is interrupted
+    by T_BRKPT or T_DEBUG, the debugger features is on.
+
+7.  einfo
+    This command displays the environment list of the kernel.
 
 You can just type the command in the console to see the instruction.
 
