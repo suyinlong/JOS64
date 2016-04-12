@@ -46,3 +46,27 @@ If the scheduler can not find any runnable environment in the active array,
 it will swap the active array with expired array then try again. After the
 second scan if it still fails, the scheduler will try to run current
 environment (if possible) or call sched_halt().
+
+---------------------------------------------------------------------
+Challenge 3 of Lab 4
+
+FPU Support:
+
+* Modify the Trapframe structure in <inc/trap.h>, add 512 bytes FxRegs.
+
+* Modify _alltraps in trapentry.S, use FXSAVE and FXRSTOR to save/restore
+  x87 FPU, MMX Technology, and SSE State
+
+* Modify env_pop_tf() in env.c, pop the trap frame correctly
+
+Test program:
+
+(temporariy write here)
+
+double c = 9.0;
+int64_t x = 0;
+
+asm("fldl %0;"::"m"(c));
+asm("fsqrt;");
+asm("fist %0;":"=m"(x));
+asm("fstpl %0;":"=m"(c));

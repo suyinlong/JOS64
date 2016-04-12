@@ -121,12 +121,18 @@ _alltraps:
 
 	PUSHA
 
+	subq $512, %rsp
+	fxsave (%rsp)
+
 	movq $GD_KD, %rax
 	movq %rax, %ds
 	movq %rax, %es
 	movq %rsp, %rdi
 
 	call trap
+
+	fxrstor (%rsp)
+	addq $512, %rsp
 
 	POPA_
 

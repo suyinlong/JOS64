@@ -114,7 +114,7 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
-	/*
+/*
 	struct Env *idle;
 	int i, count;
 
@@ -131,7 +131,7 @@ sched_yield(void)
 
 	if (idle && idle->env_status == ENV_RUNNING)
 		env_run(idle);
-	*/
+*/
 
 	// ****************************************************
 	// Chellange 2 of Lab 4
