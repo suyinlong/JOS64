@@ -16,6 +16,7 @@
 #include <kern/sched.h>
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
+#include <kern/sched.h>
 
 struct Env *envs = NULL;		// All environments
 static struct Env *env_free_list;	// Free environment list
@@ -130,6 +131,9 @@ env_init(void)
 		envs[i].env_status = ENV_FREE;
 		envs[i].env_link = env_free_list;
 		envs[i].env_runs = 0;
+		// For challenge 2 of lab 4
+		envs[i].priority = 0;
+		envs[i].pri_link = NULL;
 		env_free_list = &envs[i];
 	}
 
@@ -403,8 +407,13 @@ load_icode(struct Env *e, uint8_t *binary)
 // before running the first user-mode environment.
 // The new env's parent ID is set to 0.
 //
+
+
+// ***********************************
+// For challenge 2 of Lab 4
+// add priority
 void
-env_create(uint8_t *binary, enum EnvType type)
+env_create(uint8_t *binary, enum EnvType type, int priority)
 {
 	// LAB 3: Your code here.
 	struct Env *e;
@@ -416,6 +425,10 @@ env_create(uint8_t *binary, enum EnvType type)
 	// LAB 5: Your code here.
 	if (e->env_type == ENV_TYPE_FS)
 		e->env_tf.tf_eflags |= FL_IOPL_MASK;
+
+	// Chellange 2 of Lab 4
+	e->priority = priority;
+	sched_enqueue(priority, e);
 }
 
 //
@@ -436,6 +449,10 @@ env_free(struct Env *e)
 
 	// Note the environment's demise.
 	cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+
+	// For challenge 2 of Lab 4
+	// free the environment from the runqueue
+	sched_free(e);
 
 	// Flush all mapped pages in the user portion of the address space
 	pdpe_t *env_pdpe = KADDR(PTE_ADDR(e->env_pml4e[0]));

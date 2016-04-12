@@ -8,3 +8,41 @@ Challenge 1 of Lab 4
 Add glock
 add console lock on cprintf()
 need to do further work
+
+---------------------------------------------------------------------
+Challenge 2 of Lab 4
+
+O(1) fixed-priority scheduler is added to JOS
+
+DATA STRUCTURE
+
+Two arrays (active, expired) of runqueues are added to JOS. These queues
+are allocated in x64_vm_init(). Each array has 40 slots of queues.
+Struct Env is also modified to add the priority and pri_link fields. The
+priority field stores the fixed-priority of the environment. The pri_link
+field is used in our runqueue to point to the next environment with same
+priority. When initializing, those fields are set to 0 and NULL,
+respectively.
+
+CREATE AN ENVIRONMENT WITH PRIORITY
+
+env_create() is modified with a new argument priority. The function now
+sets the priority field of the environment structure then enqueue it into
+the runqueue of expired array. The macro ENV_CREATE is also modified to
+adapt to env_create(). The default priority (PRI_DEF) is 20.
+
+FREE AN ENVIRONMENT WITH PRIORITY
+
+env_free() is modified to call function sched_free() to remove an
+environment from the runqueue of expired array.
+
+SCHEDULING WITH PRIORITY
+
+The scheduler now scan the active array from the highest priority (=0) to
+the lowest priority (=39). When the scheduler encounter an environment
+with status ENV_RUNNABLE, it dequeue this environment and enqueue it into
+the runqueue in expired array of the same priority then try to run it.
+If the scheduler can not find any runnable environment in the active array,
+it will swap the active array with expired array then try again. After the
+second scan if it still fails, the scheduler will try to run current
+environment (if possible) or call sched_halt().

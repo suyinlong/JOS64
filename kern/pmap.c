@@ -12,6 +12,7 @@
 #include <kern/env.h>
 #include <kern/cpu.h>
 #include <kern/pmaputils.h>
+#include <kern/sched.h>
 
 extern uint64_t pml4phys;
 #define BOOT_PAGE_TABLE_START ((uint64_t) KADDR((uint64_t) &pml4phys))
@@ -43,6 +44,12 @@ struct PageInfo *page_free_list;	// Free list of physical pages
 // c_block_flag : contigous pages malloc/free support
 int pte_ps_flag = 1, c_block_flag = 1;
 struct BlockInfo *boot_bis = NULL; // Block Info array
+
+// ************************************************************
+// For challenge problem 2 of lab4
+//
+// Schedule Queue with priority
+void *schedqueue = NULL;
 
 // --------------------------------------------------------------
 // Detect machine's physical memory setup.
@@ -300,6 +307,11 @@ x64_vm_init(void)
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
 	envs = boot_alloc(NENV * sizeof(struct Env));
+
+	// ************************************************************
+	// For challenge problem 2 of lab4, we alloc the schedule queue
+	// for O(1) scheduler
+	schedqueue = boot_alloc(2 * NSCH * sizeof(uint64_t));
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set

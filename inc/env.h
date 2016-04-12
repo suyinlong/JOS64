@@ -69,6 +69,10 @@ struct Env {
 	envid_t env_ipc_from;		// envid of the sender
 	int env_ipc_perm;		// Perm of page mapping received
     uint8_t *elf;
+
+    // Challenge 2 of Lab 4 (priority schedulling)
+    int priority;			// Priority of the environment
+    struct Env *pri_link;	// Priority list link pointers
 };
 
 #endif // !JOS_INC_ENV_H

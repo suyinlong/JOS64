@@ -17,6 +17,7 @@
 #include <kern/picirq.h>
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
+#include <kern/sched.h>
 
 uint64_t end_debug;
 
@@ -49,6 +50,7 @@ i386_init(void)
 
 	// Lab 3 user environment initialization functions
 	env_init();
+	sched_init(); // challenge 2 of lab 4 add schedule queue
 	trap_init();
 
 	// Lab 4 multiprocessor initialization functions
@@ -68,11 +70,11 @@ i386_init(void)
 	boot_aps();
 
 	// Start fs.
-	ENV_CREATE(fs_fs, ENV_TYPE_FS);
+	ENV_CREATE(fs_fs, ENV_TYPE_FS, PRI_DEF);
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!
-	ENV_CREATE(TEST, ENV_TYPE_USER);
+	ENV_CREATE(TEST, ENV_TYPE_USER, PRI_DEF);
 #else
 	// Touch all you want.
 	//ENV_CREATE(user_primes, ENV_TYPE_USER);
