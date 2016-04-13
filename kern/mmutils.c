@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-11 22:14:10
+* @Last Modified time: 2016-04-12 22:55:16
 */
 
 #include <inc/stdio.h>
@@ -13,9 +13,11 @@
 #include <inc/env.h>
 
 #include <kern/console.h>
+#include <kern/env.h>
 #include <kern/monitor.h>
 #include <kern/dwarf.h>
 #include <kern/kdebug.h>
+#include <kern/sched.h>
 #include <kern/dwarf_api.h>
 #include <kern/mmutils.h>
 #include <kern/pmaputils.h>
@@ -541,5 +543,11 @@ bad_input_bcoalesce:
 
 int mon_mm_einfo(int argc, char **argv, struct Trapframe *tf) {
     mm_einfo(1);
+    return 0;
+}
+
+int mon_mm_fputest(int argc, char **argv, struct Trapframe *tf) {
+    ENV_CREATE(user_fputest, ENV_TYPE_USER, 15);
+    sched_yield();
     return 0;
 }

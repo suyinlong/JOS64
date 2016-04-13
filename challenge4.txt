@@ -67,12 +67,9 @@ FPU Support:
 
 Test program:
 
-(temporariy write here)
-
-double c = 9.0;
-int64_t x = 0;
-
-asm("fldl %0;"::"m"(c));
-asm("fsqrt;");
-asm("fist %0;":"=m"(x));
-asm("fstpl %0;":"=m"(c));
+We wrote a user program to use FLDPI instruction to get PI from FPU. Since
+JOS has poor support to floating-point numbers (none math functions provided,
+any arguments or return values as float/double will cause error), we use
+the conversion and arithmetic instructions of FPU to print out PI. The test
+program is in 'user/fputest.c'. You can type command 'fputest' in the monitor
+to invoke the program.
