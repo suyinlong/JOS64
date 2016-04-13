@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-12 22:55:16
+* @Last Modified time: 2016-04-13 11:22:59
 */
 
 #include <inc/stdio.h>
@@ -548,6 +548,12 @@ int mon_mm_einfo(int argc, char **argv, struct Trapframe *tf) {
 
 int mon_mm_fputest(int argc, char **argv, struct Trapframe *tf) {
     ENV_CREATE(user_fputest, ENV_TYPE_USER, 15);
+    sched_yield();
+    return 0;
+}
+
+int mon_mm_snapshottest(int argc, char **argv, struct Trapframe *tf) {
+    ENV_CREATE(user_snapshottest, ENV_TYPE_USER, PRI_DEF);
     sched_yield();
     return 0;
 }

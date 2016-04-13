@@ -58,6 +58,12 @@ int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint64_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
 
+int sys_env_save(envid_t envid, struct EnvSnapshot *ess);
+int sys_env_load(envid_t envid, struct EnvSnapshot *ess);
+
+void *sys_b_malloc(size_t n);
+void sys_b_free(void *va);
+
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))
 sys_exofork(void)

@@ -19,7 +19,8 @@ typedef void* (*funcPtr)(uint32_t);
 
 #define BIE_U 0x004
 
-#define BLOCK_U_START 0x9000000000
+#define BLOCK_K_START 0x9000000000
+#define BLOCK_U_START 0x0000400000
 
 struct BlockInfo {
     void *start;

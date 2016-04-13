@@ -13,6 +13,7 @@ int mon_mm_bcoalesce(int argc, char **argv, struct Trapframe *tf);
 int mon_mm_einfo(int argc, char **argv, struct Trapframe *tf);
 
 int mon_mm_fputest(int argc, char **argv, struct Trapframe *tf);
+int mon_mm_snapshottest(int argc, char **argv, struct Trapframe *tf);
 
 pte_t *pml4e_walk(pml4e_t *pml4e, const void *va, int create);
 

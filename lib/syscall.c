@@ -117,3 +117,19 @@ sys_ipc_recv(void *dstva)
 	return syscall(SYS_ipc_recv, 1, (uint64_t)dstva, 0, 0, 0, 0);
 }
 
+int sys_env_save(envid_t envid, struct EnvSnapshot *ess) {
+	return syscall(SYS_env_save, 1, envid, (uint64_t)ess, 0, 0, 0);
+}
+
+int sys_env_load(envid_t envid, struct EnvSnapshot *ess) {
+	return syscall(SYS_env_load, 1, envid, (uint64_t)ess, 0, 0, 0);
+}
+
+void *sys_b_malloc(size_t n) {
+	return (void *)syscall(SYS_b_malloc, 0, n, 0, 0, 0, 0);
+}
+
+void sys_b_free(void *va) {
+	syscall(SYS_b_free, 0, (uint64_t)va, 0, 0, 0, 0);
+	return;
+}

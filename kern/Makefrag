@@ -89,7 +89,8 @@ KERN_BINFILES +=	user/testpteshare \
 			user/testshell
 
 # Binary files for our challenge problems
-KERN_BINFILES +=	user/fputest
+KERN_BINFILES +=	user/fputest \
+			user/snapshottest
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))
 KERN_OBJFILES := $(patsubst %.S, $(OBJDIR)/%.o, $(KERN_OBJFILES))

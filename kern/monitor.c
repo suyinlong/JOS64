@@ -43,7 +43,8 @@ static struct Command commands[] = {
 	{ "s", "Debug command s", disasm_s},
 	{ "c", "Debug command c", disasm_c},
 	{ "einfo", "Display environment information", mon_mm_einfo},
-	{ "fputest", "Test the FPU instructions", mon_mm_fputest}
+	{ "fputest", "Test the FPU instructions", mon_mm_fputest},
+	{ "snapshottest", "Test the Snapshot features", mon_mm_snapshottest},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 

@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-01 09:08:45
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-07 12:54:29
+* @Last Modified time: 2016-04-13 13:04:23
 */
 
 #include <inc/stdio.h>
@@ -26,6 +26,8 @@ extern struct PageInfo *pages;          // Physical page state array
 extern struct PageInfo *page_free_list; // Free list of physical pages
 
 extern struct BlockInfo *boot_bis;
+
+int b_ring = 3; // set the block malloc/free environment (0 = kernel, 3 = user)
 
 // --------------------------------------------------------------
 // For challenge 1, 4 of lab 2
@@ -182,15 +184,16 @@ void page_update(size_t p, void *va, void *pa, int flag) {
             //cprintf("alloc 2MB from %x (offset %d)\n", current, b_offset);
             // walk to pml4e use PDE_PS_FLAG | 1
             pdep = pml4e_walk(pml4e, (void *)(va + i * PGSIZE), 1 | PDE_PS_FLAG);
-            *pdep = PDE_ADDR(pa + i * PGSIZE) | PTE_W | PTE_U | PTE_P | PTE_PS;
-            //cprintf("va %x *pdep %d\n", va + b_offset * PGSIZE, *pdep);
+            *pdep = PDE_ADDR(pa + i * PGSIZE) | PTE_USER | PTE_PS;
+            //cprintf("va %x *pdep %x\n", va + i * PGSIZE, *pdep);
             i += PDE_PS_PGNUM;
         }
         else {
             //cprintf("alloc 4KB from %x (offset %d)\n", current, b_offset);
             // walk to pml4e use 1
             ptep = pml4e_walk(pml4e, (void *)(va + i * PGSIZE), 1);
-            *ptep = PTE_ADDR(pa + i * PGSIZE) | PTE_W | PTE_U | PTE_P;
+            *ptep = PTE_ADDR(pa + i * PGSIZE) | PTE_USER;
+            //cprintf("va: %x *ptep %x\n", va + i * PGSIZE, *ptep);
             i += 1;
         }
     }
@@ -229,7 +232,7 @@ void *b_malloc(size_t n) {
         current = next;
     }
 
-    //cprintf("c_malloc: n: %d nn: %d p: %d pp: %x\n", n, nn, p, pp);
+    //cprintf("b_malloc: n: %d nn: %d p: %d pp: %x\n", n, nn, p, pp);
 
     // find free virtual address space
     void *va = bi_block(nn), *pa = (void *)page2pa(pp);
@@ -239,7 +242,7 @@ void *b_malloc(size_t n) {
 
     // save the mapping in our BlockInfo
     bi_insert(va, va + nn, pa, BIE_U);
-    //cprintf("c_malloc: va: %x pa: %x\n", va, pa);
+    //cprintf("b_malloc: va: %x pa: %x\n", va, pa);
     return va;
 }
 
@@ -491,7 +494,7 @@ int bi_delete(void *start, void *end, uint8_t perm) {
 // --------------------------------------------------------------
 // Find a free and contigous virtual space of <n> bytes in BlockInfo
 void *bi_block(size_t n) {
-    void *va = (void *)BLOCK_U_START;
+    void *va = (b_ring == 0) ? (void *)BLOCK_K_START : (void *)BLOCK_U_START;
     struct BlockInfo *bie = bi_lookup(va);
 
     if (bie == bis_end || bie->start >= va + n)
@@ -511,6 +514,8 @@ void check_b_utils() {
     void *cp1, *cp2, *cp3, *cp4, *cp5;
     struct BlockInfo *bie1, *bie2, *bie3;
     void *ptr[8];
+
+    b_ring = 0;
 
     cp1 = cp2 = cp3 = cp4 = cp5 = 0;
     bie1 = bie2 = bie3 = 0;
@@ -671,6 +676,9 @@ void check_b_utils() {
     assert(mm_showmaps((uint64_t)cp2, (uint64_t)cp2 + PDE_PS_PGSIZE * 4, 0) == 0);
 
     cprintf("check_b_utils() succeeded!\n");
+
+    b_ring = 3;
+
     return;
 
 }

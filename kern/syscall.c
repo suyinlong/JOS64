@@ -4,6 +4,7 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/env.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -11,6 +12,7 @@
 #include <kern/syscall.h>
 #include <kern/console.h>
 #include <kern/sched.h>
+#include <kern/pmaputils.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -443,6 +445,50 @@ sys_ipc_recv(void *dstva)
 	return 0;
 }
 
+static int sys_env_save(envid_t envid, struct EnvSnapshot *ess) {
+	int r;
+	struct Env *env;
+	struct PageInfo *stackpg;
+
+	if ((r = envid2env(envid, &env, 1)) < 0)
+		return r;
+	if ((r = user_mem_check(curenv, ess, sizeof(struct EnvSnapshot), PTE_U | PTE_W | PTE_P)) < 0)
+		return r;
+	ess->env = *env;
+	if ((stackpg = page_lookup(env->env_pml4e, (void *)(USTACKTOP - PGSIZE), NULL)) == NULL)
+		return -E_FAULT;
+	memmove(ess->stack, page2kva(stackpg), PGSIZE);
+
+	// cprintf("snapshot saved on env %d\n", envid);
+	return 0;
+}
+
+static int sys_env_load(envid_t envid, const struct EnvSnapshot *ess) {
+	int r;
+	struct Env *env;
+	struct PageInfo *stackpg;
+
+	if ((r = envid2env(envid, &env, 1)) < 0)
+		return r;
+	if ((r = user_mem_check(curenv, ess, sizeof(struct EnvSnapshot), PTE_U | PTE_P)) < 0)
+		return r;
+	*env = ess->env;
+	if ((stackpg = page_lookup(env->env_pml4e, (void *)(USTACKTOP - PGSIZE), NULL)) == NULL)
+		return -E_FAULT;
+	memmove(page2kva(stackpg), ess->stack, PGSIZE);
+
+	// cprintf("snapshot loaded on env%d\n", envid);
+	return 0;
+}
+
+static int64_t sys_b_malloc(size_t n) {
+	return (int64_t) b_malloc(n);
+}
+
+static int sys_b_free(void *va) {
+	b_free(va);
+	return 0;
+}
 
 
 
@@ -490,6 +536,15 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 	// note: modified for LAB5
 	case SYS_env_set_trapframe:
 		return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
+
+	case SYS_env_save:
+		return sys_env_save((envid_t)a1, (struct EnvSnapshot *)a2);
+	case SYS_env_load:
+		return sys_env_load((envid_t)a1, (struct EnvSnapshot *)a2);
+	case SYS_b_malloc:
+		return sys_b_malloc((size_t)a1);
+	case SYS_b_free:
+		return sys_b_free((void *)a1);
 
 	default:
 		return -E_NO_SYS;

@@ -75,4 +75,9 @@ struct Env {
     struct Env *pri_link;	// Priority list link pointers
 };
 
+struct EnvSnapshot {
+	struct Env env;
+	uint8_t stack[PGSIZE];
+};
+
 #endif // !JOS_INC_ENV_H

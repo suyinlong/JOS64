@@ -73,3 +73,65 @@ any arguments or return values as float/double will cause error), we use
 the conversion and arithmetic instructions of FPU to print out PI. The test
 program is in 'user/fputest.c'. You can type command 'fputest' in the monitor
 to invoke the program.
+
+---------------------------------------------------------------------
+Challenge 4 of Lab 4
+
+Snapshot of child environment
+
+DATA STRUCTURE
+
+We define the struct EnvSnapshot in <inc/env.h>. This structure saves the Env
+struct and stack page of the environment.
+
+    struct EnvSnapshot {
+        struct Env env;
+        uint8_t stack[PGSIZE];
+    };
+
+The EnvSnapshot is over 4096 bytes, it may cause some problems when we use it
+as a local variable. So we make our block malloc/free functions of challenge 4
+of lab 2 become system calls. See <inc/lib.h> <inc/syscall.h> <kern/syscall.c>
+<lib/syscall.c> for more details.
+
+SYSTEM CALLS
+
+int sys_env_save(envid_t envid, struct EnvSnapshot *ess);
+
+The sys_env_save() function use envid2env() and user_mem_check() to check the
+validity of the environment id and the memory space of EnvSnapshot structure.
+Then save the env structure and the content of stack page into 'ess'.
+
+int sys_env_load(envid_t envid, struct EnvSnapshot *ess);
+
+The sys_env_load() function use envid2env() and user_mem_check() to check the
+validity of the environment id and the memory space of EnvSnapshot structure.
+Then load the env structure and the content of stack page from 'ess'.
+
+void *sys_b_malloc(size_t n);
+
+This is the block malloc function in challege 4 of lab 2. We use it to malloc
+the memory space to store struct EnvSnapShot.
+
+void sys_b_free(void *va);
+
+This is the block free function in challege 4 of lab 2. We use it to free
+the memory space to store struct EnvSnapShot.
+
+TEST PROGRAM
+
+We wrote a program to test the snapshot feature. To invoke the test program
+from the monitor, type 'snapshottest' then press enter.
+The program first read a number (0-9) from user input, then fork a child. The
+parent process will run 10 loops, starting from 0. At the second loop it will
+save the running state of the child process. And at the ninth loop it will load
+the running state to the child process. The child process will run 25 loops
+starting from the number given by user. You can see after the loading, the child
+process just reverse back to previous state.
+
+MISC
+
+We only save the vital state of the environment. If we really want a full backup
+of the environment, we may also need to save: the global variables, the memory
+mappings (all page tables), and all the pages which the environment is using.
+Then the time and space cost will be very expensive.

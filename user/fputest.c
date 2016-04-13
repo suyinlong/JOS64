@@ -2,22 +2,31 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-12 14:53:35
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-12 22:50:14
+* @Last Modified time: 2016-04-13 11:09:28
 */
 
 // FPU test
 
 // Note: It seems that fldl instruction load more than 64 bits of data into the FPU stack.
 //       The last 'l' of fldl indicate the data is double (64 bits), but I found that the
-//       data on memory space after the 64 bits is also loaded.
+//       data loaded into the FPU stack is overflowed.
 //       My original add/sub/mul/div/mod declare the variable as:
 //           double op1 = *a, op2 = *b, op;
-//       But the result is all wrong! That is because the partial data of op2 is loaded
-//       into op1. I tried to use <long double> or change to instruction between flds, fldt
-//       but it doesn't work. So I have to add some stupid padding, now the declaration
-//       looks like:
+//       But the result is all wrong! That is because the partial data of op2 is also loaded
+//       into stack when we tried to load op1. I tried to use <long double> or change the
+//       instruction between flds, fldt but none of them works. So I have to add some stupid
+//       guard paddings, now the declaration looks like:
 //           double op1 = *a, p1 = 0.0, op2 = *b, p2 = 0.0, op, p3;
+//       This solve the problem. But if I add the guard paddings to those 0 or 1 double
+//       operand functions, it becomes wrong again. For example if I use:
+//           double op, p = 0.0;
+//       in pi(), the result is some strange number. So I have to use paddings in only some
+//       functions.
 //
+//       I hope someone can tell me why.
+//
+//       Yinlong Su
+//       April 12, 2016
 //
 
 #include <inc/lib.h>
