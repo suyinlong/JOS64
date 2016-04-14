@@ -53,6 +53,17 @@ it will swap the active array with expired array then try again. After the
 second scan if it still fails, the scheduler will try to run current
 environment (if possible) or call sched_halt().
 
+TEST PROGRAM (user/printa.c printb.c printd.c)
+
+To invoke the test program, type 'schedtest' in the monitor. The program
+creates 3 environments (PRI_DEF = 20) then call scheduler:
+    ENV_CREATE(user_printa, ENV_TYPE_USER, PRI_DEF);
+    ENV_CREATE(user_printb, ENV_TYPE_USER, PRI_DEF - 10);
+    ENV_CREATE(user_printd, ENV_TYPE_USER, PRI_DEF + 10);
+The sequence should be 'BAD'. The follow-up letters may be random since we
+also handle the clock interrupts which call up the scheduler.
+
+
 ---------------------------------------------------------------------
 Challenge 3 of Lab 4
 
@@ -65,7 +76,7 @@ FPU Support:
 
 * Modify env_pop_tf() in env.c, pop the trap frame correctly
 
-Test program:
+Test program (user/fputest.c)
 
 We wrote a user program to use FLDPI instruction to get PI from FPU. Since
 JOS has poor support to floating-point numbers (none math functions provided,
@@ -118,10 +129,10 @@ void sys_b_free(void *va);
 This is the block free function in challege 4 of lab 2. We use it to free
 the memory space to store struct EnvSnapShot.
 
-TEST PROGRAM
+TEST PROGRAM (user/snapshottest.c)
 
-We wrote a program to test the snapshot feature. To invoke the test program
-from the monitor, type 'snapshottest' then press enter.
+We wrote a program to test the snapshot feature. To invoke the test program from
+the monitor, type 'snapshottest' then press enter.
 The program first read a number (0-9) from user input, then fork a child. The
 parent process will run 10 loops, starting from 0. At the second loop it will
 save the running state of the child process. And at the ninth loop it will load
@@ -147,7 +158,7 @@ In <lib/exception.c> we have the lib function:
     void set_exception_handler(int trapno, eHandler handler);
 The assembly language exception entrypoints are defined in <lib/eentry.S>.
 
-Test program
+Test program (user/ehandlertest.c)
 
 Type 'ehandlertest' in the monitor to invoke the test program. The program
 registers three exception handlers on divide-by-zero, illegal opcode and
@@ -160,4 +171,23 @@ Shared-memory fork()
 
 Implement sfork() in <lib/fork.c>. Now the child and the parent share all
 their memory pages (map) except for pages in the stack area (COW).
+
+---------------------------------------------------------------------
+Challenge 7 of Lab 4
+
+BENCHMARKING TEST PROGRAM (user/forktest.c)
+
+We use RDTSC instruction to benchmark the performance of different approachs
+of fork(). Type 'forktest' in the monitor to invoke the test program.
+One test result is:
+  [dumbfork: 9145800]    [fork: 7640176]    [sfork: 4278556]
+Dumbfork takes a lot of ticks on switching between user mode and kernel mode.
+Our fork() takes less time since its work is done in one switch. The shared-
+memory fork() takes less time than fork() because it doesn't need to modify
+the PTE_W / PTE_COW flags thus uses less calls.
+Although the ticks do not show the actual clock cycles of running time, you
+can get rough comparison result from the numbers.
+
+
+
 
