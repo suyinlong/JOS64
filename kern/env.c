@@ -281,6 +281,19 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	// Also clear the IPC receiving flag.
 	e->env_ipc_recving = 0;
 
+	// *******************************************************
+	// Challenge 2 of Lab 4
+	// Clear priority information
+	e->priority = 0;
+	e->pri_link = NULL;
+
+	// *******************************************************
+	// Challenge 3 of Lab 4
+	// Clear the exception handlers
+	int i;
+	for (i = 0; i < N_TRAP_UPCALL; i++)
+		e->env_exception_upcall[i] = NULL;
+
 	// commit the allocation
 	env_free_list = e->env_link;
 	*newenv_store = e;

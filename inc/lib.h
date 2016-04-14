@@ -64,6 +64,11 @@ int sys_env_load(envid_t envid, struct EnvSnapshot *ess);
 void *sys_b_malloc(size_t n);
 void sys_b_free(void *va);
 
+int sys_env_set_exception_upcall(envid_t env, int trapno, void *upcall);
+
+// exception.c
+void set_exception_handler(int trapno, void (*handler)(struct UTrapframe *utf));
+
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))
 sys_exofork(void)

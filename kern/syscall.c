@@ -445,18 +445,30 @@ sys_ipc_recv(void *dstva)
 	return 0;
 }
 
+// *********************************
+// For challenge 4 of lab 4
+// system calls: sys_env_save
+//               sys_env_load  * save and load environment snapshot
+//               sys_b_malloc
+//               sys_b_free    * malloc and free block (ch2 of lab2)
+
 static int sys_env_save(envid_t envid, struct EnvSnapshot *ess) {
 	int r;
 	struct Env *env;
 	struct PageInfo *stackpg;
 
+	// check environment
 	if ((r = envid2env(envid, &env, 1)) < 0)
 		return r;
+	// check memory
 	if ((r = user_mem_check(curenv, ess, sizeof(struct EnvSnapshot), PTE_U | PTE_W | PTE_P)) < 0)
 		return r;
+	// save env struct
 	ess->env = *env;
+	// check stack page
 	if ((stackpg = page_lookup(env->env_pml4e, (void *)(USTACKTOP - PGSIZE), NULL)) == NULL)
 		return -E_FAULT;
+	// save stack page
 	memmove(ess->stack, page2kva(stackpg), PGSIZE);
 
 	// cprintf("snapshot saved on env %d\n", envid);
@@ -468,13 +480,18 @@ static int sys_env_load(envid_t envid, const struct EnvSnapshot *ess) {
 	struct Env *env;
 	struct PageInfo *stackpg;
 
+	// check environment
 	if ((r = envid2env(envid, &env, 1)) < 0)
 		return r;
+	// check memory
 	if ((r = user_mem_check(curenv, ess, sizeof(struct EnvSnapshot), PTE_U | PTE_P)) < 0)
 		return r;
+	// load env struct
 	*env = ess->env;
+	// check stack page
 	if ((stackpg = page_lookup(env->env_pml4e, (void *)(USTACKTOP - PGSIZE), NULL)) == NULL)
 		return -E_FAULT;
+	// load stack page
 	memmove(page2kva(stackpg), ess->stack, PGSIZE);
 
 	// cprintf("snapshot loaded on env%d\n", envid);
@@ -490,6 +507,31 @@ static int sys_b_free(void *va) {
 	return 0;
 }
 
+// ******************************************************
+// Challenge 5 of Lab 4
+// Set exception upcall function
+
+static int sys_env_set_exception_upcall(envid_t envid, int trapno, void *func)
+{
+	struct Env *env;
+	int ret;
+
+	// check environment
+	if ((ret = envid2env(envid, &env, 1)) < 0)
+		return ret;
+	// check trapno
+	if (trapno < 0 || trapno >= N_TRAP_UPCALL)
+		return 0;
+
+	// set the exception_upcall
+	env->env_exception_upcall[trapno] = func;
+
+	if (trapno == T_PGFLT)
+		env->env_pgfault_upcall = func;
+
+	return 0;
+	//panic("sys_env_set_pgfault_upcall not implemented");
+}
 
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -545,6 +587,8 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 		return sys_b_malloc((size_t)a1);
 	case SYS_b_free:
 		return sys_b_free((void *)a1);
+	case SYS_env_set_exception_upcall:
+		return sys_env_set_exception_upcall((envid_t)a1, (int)a2, (void *)a3);
 
 	default:
 		return -E_NO_SYS;

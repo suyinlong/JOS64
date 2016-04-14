@@ -2,11 +2,21 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-13 11:02:19
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-13 13:52:07
+* @Last Modified time: 2016-04-13 19:33:25
 */
 
-#include <inc/lib.h>
+// Snapshot Test
 
+// 1. Accept a number J (0-9) from console;
+// 2. Fork a child process;
+// 3. Loop 10 times in the parent process.
+//    At the second loop, save the state of the child process.
+//    At the ninth loop, load the state of the child process.
+// 4. Loop 25 times in the child process, starting from J.
+//
+// Yinlong Su
+// April 13, 2016
+//
 #include <inc/lib.h>
 #include <inc/env.h>
 

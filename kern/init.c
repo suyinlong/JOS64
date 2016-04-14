@@ -80,7 +80,7 @@ i386_init(void)
 	//ENV_CREATE(user_primes, ENV_TYPE_USER);
 
 	// Below are Lab 3 test codes
-	//ENV_CREATE(user_hello, ENV_TYPE_USER, 35);
+	ENV_CREATE(user_hello, ENV_TYPE_USER, 35);
 
 	// Lab 3: Exercise 9 - Your code here
 	//ENV_CREATE(user_divzero, ENV_TYPE_USER);

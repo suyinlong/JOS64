@@ -21,6 +21,7 @@ enum {
 	SYS_env_load,
 	SYS_b_malloc,
 	SYS_b_free,
+	SYS_env_set_exception_upcall,
 	NSYSCALLS
 };
 

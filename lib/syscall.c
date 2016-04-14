@@ -133,3 +133,7 @@ void sys_b_free(void *va) {
 	syscall(SYS_b_free, 0, (uint64_t)va, 0, 0, 0, 0);
 	return;
 }
+
+int sys_env_set_exception_upcall(envid_t env, int trapno, void *upcall) {
+	return syscall(SYS_env_set_exception_upcall, 1, env, trapno, (uint64_t)upcall, 0, 0);
+}

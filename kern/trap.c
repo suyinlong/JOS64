@@ -221,6 +221,11 @@ trap_dispatch(struct Trapframe *tf)
 			break;
 	}
 
+	if (tf->tf_trapno < N_TRAP_UPCALL && (tf->tf_cs & 3) && curenv->env_exception_upcall[tf->tf_trapno] != NULL) {
+		user_exception_handler(tf);
+		return;
+	}
+
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
 	// IRQ line or other reasons. We don't care.
@@ -407,3 +412,31 @@ page_fault_handler(struct Trapframe *tf)
 	env_destroy(curenv);
 }
 
+void user_exception_handler(struct Trapframe *tf) {
+	struct UTrapframe *utf;
+
+	// allocate memory for another trap-frame
+	utf = (struct UTrapframe *)(UXSTACKTOP - sizeof(struct UTrapframe));
+	if (tf->tf_rsp >= UXSTACKTOP - PGSIZE && tf->tf_rsp < UXSTACKTOP)
+		utf = (struct UTrapframe *)(tf->tf_rsp - sizeof(struct UTrapframe) - 8);
+	user_mem_assert(curenv, utf, sizeof(struct UTrapframe), PTE_U | PTE_W);
+
+	// store current trap-frame information
+	utf->utf_fault_va = 0;
+	utf->utf_err = tf->tf_err;
+	utf->utf_regs = tf->tf_regs;
+	utf->utf_rip = tf->tf_rip;
+	utf->utf_rsp = tf->tf_rsp;
+	utf->utf_eflags = tf->tf_eflags;
+
+	// modify trap-frame to run env_pgfault_upcall
+	tf->tf_rip = (uintptr_t)curenv->env_exception_upcall[tf->tf_trapno];
+	tf->tf_rsp = (uintptr_t)utf;
+	env_run(curenv);
+
+	// Destroy the environment that caused the fault.
+	//cprintf("[%08x] user fault va %08x ip %08x\n",
+		//curenv->env_id, fault_va, tf->tf_rip);
+	print_trapframe(tf);
+	env_destroy(curenv);
+}

@@ -132,6 +132,26 @@ process just reverse back to previous state.
 MISC
 
 We only save the vital state of the environment. If we really want a full backup
-of the environment, we may also need to save: the global variables, the memory
-mappings (all page tables), and all the pages which the environment is using.
-Then the time and space cost will be very expensive.
+of the environment, we may also need to save: the extra pages of the stack, the
+global variables, the memory mappings (all page tables), and all the pages which
+the environment is using. Then the time and space cost will be very expensive.
+
+---------------------------------------------------------------------
+Challenge 5 of Lab 4
+
+User Exception Handler
+
+We provide a new lib function to allow users to handle the exceptions by
+themselves. The basic idea is same as user page fault handler.
+In <lib/exception.c> we have the lib function:
+    void set_exception_handler(int trapno, eHandler handler);
+The assembly language exception entrypoints are defined in <lib/eentry.S>.
+
+Test program
+
+Type 'ehandlertest' in the monitor to invoke the test program. The program
+registers three exception handlers on divide-by-zero, illegal opcode and
+general protection fault.
+
+
+
