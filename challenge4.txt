@@ -153,5 +153,11 @@ Type 'ehandlertest' in the monitor to invoke the test program. The program
 registers three exception handlers on divide-by-zero, illegal opcode and
 general protection fault.
 
+---------------------------------------------------------------------
+Challenge 6 of Lab 4
 
+Shared-memory fork()
+
+Implement sfork() in <lib/fork.c>. Now the child and the parent share all
+their memory pages (map) except for pages in the stack area (COW).
 

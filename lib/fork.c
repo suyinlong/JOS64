@@ -160,10 +160,72 @@ fork(void)
 	//panic("fork not implemented");
 }
 
-// Challenge!
-int
-sfork(void)
-{
-	panic("sfork not implemented");
-	return -E_INVAL;
+// *************************************************
+// Challenge 6 of Lab 4
+// shared-memory fork()
+//
+int sfork(void) {
+	int r;
+	envid_t envid;
+	int i, j, k, l, ptx = 0;
+
+	set_pgfault_handler(pgfault);
+
+	if ((envid = sys_exofork()) < 0)
+		return envid;
+	else if (envid == 0) {
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+
+	// for exception handler stack
+	if ((r = sys_page_alloc(envid, (void *)(UXSTACKTOP - PGSIZE), PTE_P | PTE_U | PTE_W)) < 0)
+		return r;
+
+	for (i = 0; i < VPML4E(UTOP); i++) {
+		if ((uvpml4e[ptx / NPDPENTRIES / NPDENTRIES / NPTENTRIES] & PTE_P) == 0) {
+			ptx += NPDPENTRIES * NPDENTRIES * NPTENTRIES;
+			continue;
+		}
+
+		for (j = 0; j < NPDENTRIES; j++) {
+			if ((uvpde[ptx / NPDENTRIES / NPTENTRIES] & PTE_P) == 0) {
+				ptx += NPDENTRIES * NPTENTRIES;
+				continue;
+			}
+
+			for (k = 0; k < NPDENTRIES; k++) {
+				if ((uvpd[ptx / NPTENTRIES] & PTE_P) == 0) {
+					ptx += NPTENTRIES;
+					continue;
+				}
+
+				for (l = 0; l < NPTENTRIES; l++) {
+					if ((uvpt[ptx] & PTE_P) != 0)
+						if (ptx != VPN(UXSTACKTOP - PGSIZE)) {
+							void *addr = (void *)((uintptr_t)ptx * PGSIZE);
+							if ((uint64_t)addr == (USTACKTOP - PGSIZE)) {
+								// user stack, COW
+								if ((r = duppage(envid, ptx)) < 0)
+									return r;
+							}
+							else {
+								// otherwise, shared-memory
+								if ((r = sys_page_map(0, addr, envid, addr, PTE_P | PTE_U | PTE_W)) < 0)
+									return r;
+							}
+						}
+					ptx++;
+				}
+			}
+		}
+	}
+
+	extern void _pgfault_upcall();
+	if ((r = sys_env_set_pgfault_upcall(envid, _pgfault_upcall)) < 0)
+		return r;
+	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
+		return r;
+
+	return envid;
 }
