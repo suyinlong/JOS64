@@ -60,9 +60,7 @@ creates 3 environments (PRI_DEF = 20) then call scheduler:
     ENV_CREATE(user_printa, ENV_TYPE_USER, PRI_DEF);
     ENV_CREATE(user_printb, ENV_TYPE_USER, PRI_DEF - 10);
     ENV_CREATE(user_printd, ENV_TYPE_USER, PRI_DEF + 10);
-The sequence should be 'BAD'. The follow-up letters may be random since we
-also handle the clock interrupts which call up the scheduler.
-
+The sequence should be 'BAD'.
 
 ---------------------------------------------------------------------
 Challenge 3 of Lab 4
@@ -100,10 +98,9 @@ struct and stack page of the environment.
         uint8_t stack[PGSIZE];
     };
 
-The EnvSnapshot is over 4096 bytes, it may cause some problems when we use it
-as a local variable. So we make our block malloc/free functions of challenge 4
-of lab 2 become system calls. See <inc/lib.h> <inc/syscall.h> <kern/syscall.c>
-<lib/syscall.c> for more details.
+The EnvSnapshot is over 4096 bytes, so we make our block malloc/free functions
+of challenge 4 of lab 2 become system calls. See <inc/lib.h> <inc/syscall.h>
+<kern/syscall.c> <lib/syscall.c> for more details.
 
 SYSTEM CALLS
 

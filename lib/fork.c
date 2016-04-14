@@ -167,7 +167,8 @@ fork(void)
 int sfork(void) {
 	int r;
 	envid_t envid;
-	int i, j, k, l, ptx = 0;
+	void *addr;
+	int i, j, k, l, ptx, stack_ptx = VPN(USTACKTOP - PGSIZE);
 
 	set_pgfault_handler(pgfault);
 
@@ -182,6 +183,18 @@ int sfork(void) {
 	if ((r = sys_page_alloc(envid, (void *)(UXSTACKTOP - PGSIZE), PTE_P | PTE_U | PTE_W)) < 0)
 		return r;
 
+	// find the boundary of user stack
+	for (ptx = VPN(USTACKTOP - PGSIZE); ptx >= VPN(UTEXT); ptx--) {
+		if ((uvpml4e[ptx / NPDPENTRIES / NPDENTRIES / NPTENTRIES] & PTE_P)
+			&& (uvpde[ptx / NPDENTRIES / NPTENTRIES] & PTE_P)
+			&& (uvpd[ptx / NPTENTRIES] & PTE_P)
+			&& (uvpt[ptx] & PTE_P & PTE_U))
+			stack_ptx = ptx;
+		else
+			break;
+	}
+
+	ptx = 0;
 	for (i = 0; i < VPML4E(UTOP); i++) {
 		if ((uvpml4e[ptx / NPDPENTRIES / NPDENTRIES / NPTENTRIES] & PTE_P) == 0) {
 			ptx += NPDPENTRIES * NPDENTRIES * NPTENTRIES;
@@ -203,14 +216,14 @@ int sfork(void) {
 				for (l = 0; l < NPTENTRIES; l++) {
 					if ((uvpt[ptx] & PTE_P) != 0)
 						if (ptx != VPN(UXSTACKTOP - PGSIZE)) {
-							void *addr = (void *)((uintptr_t)ptx * PGSIZE);
-							if ((uint64_t)addr == (USTACKTOP - PGSIZE)) {
+							if (ptx >= stack_ptx && ptx <= VPN(USTACKTOP - PGSIZE)) {
 								// user stack, COW
 								if ((r = duppage(envid, ptx)) < 0)
 									return r;
 							}
 							else {
 								// otherwise, shared-memory
+								addr = (void *)((uintptr_t)ptx * PGSIZE);
 								if ((r = sys_page_map(0, addr, envid, addr, PTE_P | PTE_U | PTE_W)) < 0)
 									return r;
 							}

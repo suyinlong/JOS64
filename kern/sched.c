@@ -138,11 +138,17 @@ sched_yield(void)
 	// O(1) scheduler
 
 	struct Env *target;
-	int i, swap = 0;
+	int i, max = NSCH, swap = 0;
+
+	// If it is a clock interrupt, (i.e. the env does not want to yield)
+	// scan to the env's priority (make sure high priority envs run first)
+	target = thiscpu->cpu_env;
+	if (target && target->env_status == ENV_RUNNING)
+		max = target->priority;
 
 	while (swap == 0) {
 		i = 0;
-		while (i < NSCH) {
+		while (i < max) {
 			// try to find a runnable environment
 			target = sched_dequeue(i);
 			if (!target) {

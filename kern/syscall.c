@@ -70,6 +70,10 @@ sys_env_destroy(envid_t envid)
 static void
 sys_yield(void)
 {
+	// *************************************
+	// Challenge 2 of Lab 4 (fixed-priority scheduler)
+	// add this to indicate the curenv wants to yield
+	curenv->env_status = ENV_RUNNABLE;
 	sched_yield();
 }
 
