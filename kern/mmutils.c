@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-13 23:16:27
+* @Last Modified time: 2016-04-14 18:14:12
 */
 
 #include <inc/stdio.h>
@@ -574,6 +574,12 @@ int mon_mm_schedtest(int argc, char **argv, struct Trapframe *tf) {
     ENV_CREATE(user_printa, ENV_TYPE_USER, PRI_DEF);
     ENV_CREATE(user_printb, ENV_TYPE_USER, PRI_DEF - 10);
     ENV_CREATE(user_printd, ENV_TYPE_USER, PRI_DEF + 10);
+    sched_yield();
+    return 0;
+}
+
+int mon_mm_matrixtest(int argc, char **argv, struct Trapframe *tf) {
+    ENV_CREATE(user_matrix, ENV_TYPE_USER, PRI_DEF);
     sched_yield();
     return 0;
 }

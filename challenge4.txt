@@ -187,4 +187,38 @@ can get rough comparison result from the numbers.
 
 
 
+---------------------------------------------------------------------
+Challenge 9 of Lab 4
 
+Concurrent Matrix Multiplication
+
+Calculate IN * A (user/matrix.c)
+In the monitor, use command 'matrixtest' to invoke the test program.
+We use our fork() to fork 12 child processes. Every node know its right and
+bottom nodes. The parent node feeds three input nodes (1,0) (2,0) (3,0) the
+value of matrix IN row by row. And nine center nodes accept the numbers passed
+from their left and top. The final result is sent back to parent node.
+
+ +---+    +---+    +---+    +---+    +---+
+ | I | → |1,0| → |1,1| → |1,2| → |1,3|
+ | N |    +---+    +---+    +---+    +---+
+ | P |               ↓        ↓        ↓
+ | U |    +---+    +---+    +---+    +---+
+ | T | → |2,0| → |2,1| → |2,2| → |2,3|
+ |   |    +---+    +---+    +---+    +---+
+ | S |               ↓        ↓        ↓
+ | T |    +---+    +---+    +---+    +---+
+ | R | → |3,0| → |3,1| → |3,2| → |3,3|
+ | E |    +---+    +---+    +---+    +---+
+ | A |               ↓        ↓        ↓
+ | M +-----------------------------------+
+ | +           OUTPUT STREAM             |
+ +---------------------------------------+
+
+ NOTE:
+   1.To simplify the program, we make matrix A as a constant matrix and every
+   child can access it directly. It is almost the same as the parent node gets
+   input from user then forks children and every child has matrix A. We just
+   don't want to type the numbers every time the program runs.
+   2.And the IN matrix is also a constant matrix (coz we are lazy...). But our
+   child nodes only accept the numbers from IPC message.
