@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-12 14:53:35
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-13 11:09:28
+* @Last Modified time: 2016-04-23 12:49:46
 */
 
 // FPU test
@@ -43,9 +43,10 @@ void pi(double *c) {
 void double2int(double *c, int64_t *i) {
     double op = *c;
     int64_t x;
+    //cprintf("sizeof int64_t:%d\n", sizeof(int64_t));
 
     asm("fldl %0;"::"m"(op));
-    asm("fistp %0;":"=m"(x));
+    asm("fistpq %0;":"=m"(x));
 
     *i = x;
 }
@@ -85,6 +86,16 @@ void sqrt(double *c) {
 
     asm("fldl %0;"::"m"(op));
     asm("fsqrt;");
+    asm("fstpl %0;":"=m"(op));
+
+    *c = op;
+}
+
+void chs(double *c) {
+    double op = *c;
+
+    asm("fldl %0;"::"m"(op));
+    asm("fchs;");
     asm("fstpl %0;":"=m"(op));
 
     *c = op;
@@ -146,7 +157,6 @@ void mod(double *a, double *b, double *c) {
 void
 umain(int argc, char **argv)
 {
-
     asm("finit;");
 
     // save old control word of FPU
@@ -157,25 +167,24 @@ umain(int argc, char **argv)
     uint16_t new_cw = (old_cw & 0xF3FF) | 0x400;
     asm("fldcw %0;"::"m"(new_cw));
 
-    double fpu_pi, c, t, base = 10.0;
+    double fpu_pi, c, t, base;
     int64_t x, i;
 
     // get PI from FPU
     pi(&fpu_pi);
 
     cprintf("\033[43;30mFPU PI = ");
-
+    // print the integral part
     double2int(&fpu_pi, &x);
     cprintf("%d.", x);
+    // calculate and print the fractional part
+    c = fpu_pi, base = 1000000000000000.0;
+    int2double(&x, &t);
+    sub(&c, &t, &c);
+    mul(&c, &base, &c);
+    double2int(&c, &x);
+    cprintf("%d", x);
 
-    c = fpu_pi;
-    for (i = 1; i <= 20; i++) {
-        int2double(&x, &t);
-        sub(&c, &t, &c);
-        mul(&c, &base, &c);
-        double2int(&c, &x);
-        cprintf("%d", x);
-    }
     cprintf("\033[0m\n");
 
     // restore old control word of FPU

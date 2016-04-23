@@ -294,6 +294,11 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	for (i = 0; i < N_TRAP_UPCALL; i++)
 		e->env_exception_upcall[i] = NULL;
 
+	// Challenge 10 & 11 of Lab 4
+	// Clear the source-specified IPC flag
+	e->env_sipc_from = 0;
+	e->env_sipc_value = 0;
+
 	// commit the allocation
 	env_free_list = e->env_link;
 	*newenv_store = e;

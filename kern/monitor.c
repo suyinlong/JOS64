@@ -49,6 +49,7 @@ static struct Command commands[] = {
 	{ "forktest", "Test the fork performance", mon_mm_forktest},
 	{ "schedtest", "Test the fixed-priority scheduler", mon_mm_schedtest},
 	{ "matrixtest", "Test the matrix multiplication", mon_mm_matrixtest},
+	{ "powerseriestest", "Test the power series calculator", mon_mm_powerseriestest},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 

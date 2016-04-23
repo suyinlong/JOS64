@@ -22,6 +22,8 @@ enum {
 	SYS_b_malloc,
 	SYS_b_free,
 	SYS_env_set_exception_upcall,
+	SYS_sipc_try_send,
+	SYS_sipc_recv,
 	NSYSCALLS
 };
 

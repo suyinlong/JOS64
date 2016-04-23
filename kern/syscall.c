@@ -534,7 +534,41 @@ static int sys_env_set_exception_upcall(envid_t envid, int trapno, void *func)
 		env->env_pgfault_upcall = func;
 
 	return 0;
-	//panic("sys_env_set_pgfault_upcall not implemented");
+}
+
+// ******************************************************
+// Challenge 10 & 11 of Lab 4
+// Source-specified IPC functions
+
+static int sys_sipc_try_send(envid_t envid, uint64_t value) {
+	struct Env *env;
+	int ret;
+
+	if ((ret = envid2env(envid, &env, 0)) < 0)
+		return ret;
+
+	if (env->env_sipc_recving == 0)
+		return -E_IPC_NOT_RECV;
+
+	if (env->env_sipc_from != 0 && env->env_sipc_from != curenv->env_id)
+		return -E_IPC_NOT_RECV;
+
+	env->env_sipc_recving = 0;
+	env->env_sipc_from = curenv->env_id;
+	env->env_sipc_value = value;
+	env->env_status = ENV_RUNNABLE;
+
+	return 0;
+}
+
+static int sys_sipc_recv(envid_t from) {
+	curenv->env_sipc_recving = 1;
+	curenv->env_sipc_from = from;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	curenv->env_tf.tf_regs.reg_rax = 0;
+	sched_yield();
+
+	return 0;
 }
 
 
@@ -593,7 +627,10 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 		return sys_b_free((void *)a1);
 	case SYS_env_set_exception_upcall:
 		return sys_env_set_exception_upcall((envid_t)a1, (int)a2, (void *)a3);
-
+	case SYS_sipc_try_send:
+		return sys_sipc_try_send((envid_t)a1, (uint64_t)a2);
+	case SYS_sipc_recv:
+		return sys_sipc_recv((envid_t)a1);
 	default:
 		return -E_NO_SYS;
 	}

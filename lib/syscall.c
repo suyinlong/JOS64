@@ -137,3 +137,11 @@ void sys_b_free(void *va) {
 int sys_env_set_exception_upcall(envid_t env, int trapno, void *upcall) {
 	return syscall(SYS_env_set_exception_upcall, 1, env, trapno, (uint64_t)upcall, 0, 0);
 }
+
+uint64_t sys_sipc_try_send(envid_t envid, uint64_t value) {
+	return syscall(SYS_sipc_try_send, 0, envid, value, 0, 0, 0);
+}
+
+uint64_t sys_sipc_recv(envid_t envid) {
+	return syscall(SYS_sipc_recv, 0, envid, 0, 0, 0, 0);
+}

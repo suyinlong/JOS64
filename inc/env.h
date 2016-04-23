@@ -76,8 +76,13 @@ struct Env {
     int priority;			// Priority of the environment
     struct Env *pri_link;	// Priority list link pointers
 
-    // Challegne 5 of Lab 5 (exception handling)
+    // Challegne 5 of Lab 4 (exception handling)
     void *env_exception_upcall[N_TRAP_UPCALL];
+
+    // Challenge * of Lab 4 (Source-specified IPC)
+    bool env_sipc_recving;      // Env is blocked receiving
+    envid_t env_sipc_from;      // Envid of the expected source
+    uint64_t env_sipc_value;    // Data value sent to us from SIPC
 };
 
 struct EnvSnapshot {
