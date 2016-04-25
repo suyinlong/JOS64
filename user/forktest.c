@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-13 22:41:26
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-24 23:36:11
+* @Last Modified time: 2016-04-25 00:21:20
 */
 
 // Fork performance test
@@ -38,13 +38,8 @@ void umain(int argc, char **argv) {
     who = sfork();
     asm volatile("rdtsc;":"=a"(c),"=d"(d));
     sys_yield();
-    if (who < 0) {
-        cprintf("error sfork! %e\n", who);
-    }
-    if (!who) {
-        cprintf("i am sork child\n");
+    if (!who)
         return;
-    }
     sys_yield();
     tick3 = (((uint64_t)c) | ((uint64_t)d << 32)) - (((uint64_t)a) | ((uint64_t)b << 32));
 
