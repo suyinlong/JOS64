@@ -8,6 +8,11 @@
 #include <inc/stdarg.h>
 #include <inc/error.h>
 
+#define color_fun(__color) \
+	__color = (__color & 0x04) >> 2 | (__color & 0x02) | (__color & 0x01) << 2
+
+int color_flag = 0x07, color_parsing = 0;
+
 /*
  * Space or zero padding and a field width are supported for the numeric
  * formats only.
@@ -63,7 +68,7 @@ printnum(void (*putch)(int, void*), void *putdat,
 static unsigned long long
 getuint(va_list *ap, int lflag)
 {
-	unsigned long long x;    
+	unsigned long long x;
 	if (lflag >= 2)
 		x= va_arg(*ap, unsigned long long);
 	else if (lflag)
@@ -96,17 +101,67 @@ void
 vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 {
 	register const char *p;
-	register int ch, err;
+	register int ch, err, esc_color;
 	unsigned long long num;
 	int base, lflag, width, precision, altflag;
 	char padc;
 	va_list aq;
 	va_copy(aq,ap);
 	while (1) {
-		while ((ch = *(unsigned char *) fmt++) != '%') {
+		ch = *(unsigned char *) fmt++;
+		while (ch != '%' && ch != '\033') {
 			if (ch == '\0')
 				return;
 			putch(ch, putdat);
+			ch = *(unsigned char *) fmt++;
+		}
+
+		if (ch == '\033') {
+			// set parsing status to 1, which will temporarily disable the char display sent to CGA
+			// but will not affect serial and lpt
+			color_parsing = 1;
+			// read Escape sequence
+			putch(ch, putdat);
+			putch('[', putdat);
+			// read number
+			while (1) {
+				esc_color = 0;
+				ch = *(unsigned char *) ++fmt;
+				// if encounter ';' or 'm', then we got our number
+				while (ch != ';' && ch != 'm') {
+					putch(ch, putdat);
+					esc_color *= 10;
+					esc_color += ch - '0';
+					ch = *(unsigned char *) ++fmt;
+				}
+
+				// interpret number
+				if (esc_color == 0)
+					color_flag = 0x07;
+				else if (esc_color >= 30 && esc_color <= 37) {
+					// foreground colors
+					color_flag &= 0xf8;
+					esc_color -= 30;
+					color_flag |= color_fun(esc_color);
+				}
+				else if (esc_color >= 40 && esc_color <= 47) {
+					// background colors
+					color_flag &= 0x8f;
+					esc_color -= 40;
+					color_flag |= (color_fun(esc_color) << 4);
+				}
+				putch(ch, putdat);
+
+				// if encounter 'm', escape sequence finish
+				if (ch == 'm') {
+					fmt ++;
+					break;
+				}
+			}
+
+			// stop color parsing
+			color_parsing = 0;
+			continue;
 		}
 
 		// Process a %-escape sequence
@@ -220,10 +275,13 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		// (unsigned) octal
 		case 'o':
 			// Replace this with your code.
-			putch('X', putdat);
-			putch('X', putdat);
-			putch('X', putdat);
-			break;
+			num = getint(&aq,3);
+			if ((long long) num < 0) {
+				putch('-', putdat);
+				num = -(long long) num;
+			}
+			base = 8;
+			goto number;
 
 		// pointer
 		case 'p':

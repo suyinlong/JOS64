@@ -43,6 +43,10 @@
 
 #include <inc/types.h>
 
+struct FxRegs {
+    uint8_t reg[512];
+} __attribute__((packed));
+
 struct PushRegs {
 	/* registers as pushed by pusha */
     uint64_t reg_r15;
@@ -63,6 +67,7 @@ struct PushRegs {
 } __attribute__((packed));
 
 struct Trapframe {
+    struct FxRegs tf_fxregs;
 	struct PushRegs tf_regs;
 	uint16_t tf_es;
 	uint16_t tf_padding1;

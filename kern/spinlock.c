@@ -16,6 +16,9 @@ struct spinlock kernel_lock = {
 #endif
 };
 
+// For challenge 1 of Lab 4
+struct spinlock g_locks[GLOCK_LOCKNUM];
+
 #ifdef DEBUG_SPINLOCK
 // Record the current call stack in pcs[] by following the %ebp chain.
 static void
@@ -67,7 +70,7 @@ spin_lock(struct spinlock *lk)
 
 	// The xchg is atomic.
 	// It also serializes, so that reads after acquire are not
-	// reordered before it. 
+	// reordered before it.
 	while (xchg(&lk->locked, 1) != 0)
 		asm volatile ("pause");
 
@@ -88,11 +91,11 @@ spin_unlock(struct spinlock *lk)
 		uint32_t pcs[10];
 		// Nab the acquiring EIP chain before it gets released
 		memmove(pcs, lk->pcs, sizeof pcs);
-		if (!lk->cpu) 
-                        cprintf("CPU %d cannot release %s: not held by any CPU\nAcquired at:", 
+		if (!lk->cpu)
+                        cprintf("CPU %d cannot release %s: not held by any CPU\nAcquired at:",
                                 cpunum(), lk->name);
-                else 
-			cprintf("CPU %d cannot release %s: held by CPU %d\nAcquired at:", 
+                else
+			cprintf("CPU %d cannot release %s: held by CPU %d\nAcquired at:",
 				cpunum(), lk->name, lk->cpu->cpu_id);
 		for (i = 0; i < 10 && pcs[i]; i++) {
 			struct Ripdebuginfo info;
@@ -111,7 +114,7 @@ spin_unlock(struct spinlock *lk)
 	lk->cpu = 0;
 #endif
 
-	// The xchg serializes, so that reads before release are 
+	// The xchg serializes, so that reads before release are
 	// not reordered after it.  The 1996 PentiumPro manual (Volume 3,
 	// 7.2) says reads can be carried out speculatively and in
 	// any order, which implies we need to serialize here.

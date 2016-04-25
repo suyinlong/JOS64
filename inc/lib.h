@@ -61,6 +61,20 @@ int	sys_ipc_try_send(envid_t to_env, uint64_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
 unsigned int sys_time_msec(void);
 
+int	sys_env_save(envid_t envid, struct EnvSnapshot *ess);
+int	sys_env_load(envid_t envid, struct EnvSnapshot *ess);
+
+void *	sys_b_malloc(size_t n);
+void	sys_b_free(void *va);
+
+int	sys_env_set_exception_upcall(envid_t env, int trapno, void *upcall);
+
+uint64_t	sys_sipc_try_send(envid_t envid, uint64_t value);
+uint64_t	sys_sipc_recv(envid_t envid);
+
+// exception.c
+void set_exception_handler(int trapno, void (*handler)(struct UTrapframe *utf));
+
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))
 sys_exofork(void)
@@ -78,6 +92,10 @@ sys_exofork(void)
 void	ipc_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int32_t ipc_recv(envid_t *from_env_store, void *pg, int *perm_store);
 envid_t	ipc_find_env(enum EnvType type);
+
+// sipc.c
+void		sipc_send(envid_t to, uint64_t value);
+uint64_t	sipc_recv(envid_t from, envid_t *from_env_store);
 
 // fork.c
 #define	PTE_SHARE	0x400

@@ -73,7 +73,7 @@ _dwarf_lineno_run_program(Dwarf_CU *cu, Dwarf_LineInfo li, uint8_t *p,
         end_sequence   = 0;             \
         prologue_end   = 0;             \
         epilogue_begin = 0;             \
-    } while(0)
+    } while (0)
 
 #define APPEND_ROW                      \
     do {                            \
@@ -89,7 +89,7 @@ _dwarf_lineno_run_program(Dwarf_CU *cu, Dwarf_LineInfo li, uint8_t *p,
         ln->ln_stmt   = is_stmt;            \
         ln->ln_endseq = end_sequence;           \
         li->li_lnlen++;                 \
-    } while(0)
+    } while (0)
 
 #define LINE(x) (li->li_lbase + (((x) - li->li_opbase) % li->li_lrange))
 #define ADDRESS(x) ((((x) - li->li_opbase) / li->li_lrange) * li->li_minlen)

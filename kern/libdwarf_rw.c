@@ -350,7 +350,7 @@ int _get_next_cu(Dwarf_Debug dbg, Dwarf_CU *cu)
     uint64_t offset;
     uint8_t dwarf_size;
 
-    if(dbg->curr_off_dbginfo > dbg->dbg_info_size)
+    if (dbg->curr_off_dbginfo > dbg->dbg_info_size)
         return -1;
 
     offset = dbg->curr_off_dbginfo;
@@ -677,7 +677,7 @@ dwarf_search_die_within_cu(Dwarf_Debug dbg, Dwarf_CU cu, uint64_t offset, Dwarf_
         //ret_die->die_cu  = cu;
         //ret_die->die_dbg = cu->cu_dbg;
 
-        for(i=0; i < ab.ab_atnum; i++)
+        for (i = 0; i < ab.ab_atnum; i++)
         {
             if ((ret = _dwarf_attr_init(dbg, &offset, &cu, ret_die, &ab.ab_attrdef[i], ab.ab_attrdef[i].ad_form, 0)) != DW_DLE_NONE)
                 return (ret);
@@ -724,7 +724,7 @@ _dwarf_attr_find(Dwarf_Die *die, uint16_t attr)
     Dwarf_Attribute *myat = NULL;
     int i;
     
-    for(i=0; i < die->die_attr_count; i++)
+    for (i = 0; i < die->die_attr_count; i++)
     {
         if (die->die_attr[i].at_attrib == attr)
         {

@@ -30,6 +30,8 @@ extern physaddr_t boot_cr3;
 #define NENV			(1 << LOG2NENV)
 #define ENVX(envid)		((envid) & (NENV - 1))
 
+#define N_TRAP_UPCALL	20
+
 // Values of env_status in struct Env
 enum {
 	ENV_FREE = 0,
@@ -70,6 +72,23 @@ struct Env {
 	envid_t env_ipc_from;		// envid of the sender
 	int env_ipc_perm;		// Perm of page mapping received
     uint8_t *elf;
+
+    // Challenge 2 of Lab 4 (priority schedulling)
+    int priority;			// Priority of the environment
+    struct Env *pri_link;	// Priority list link pointers
+
+    // Challegne 5 of Lab 4 (exception handling)
+    void *env_exception_upcall[N_TRAP_UPCALL];
+
+    // Challenge * of Lab 4 (Source-specified IPC)
+    bool env_sipc_recving;      // Env is blocked receiving
+    envid_t env_sipc_from;      // Envid of the expected source
+    uint64_t env_sipc_value;    // Data value sent to us from SIPC
+};
+
+struct EnvSnapshot {
+	struct Env env;
+	uint8_t stack[PGSIZE];
 };
 
 #endif // !JOS_INC_ENV_H

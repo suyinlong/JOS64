@@ -1,3 +1,224 @@
 List challenge problems completed as part of the lab 4 handin, as well
 as the problem number.  If you worked any previous lab challenges and
 submitted them with this lab, list them here, along with the lab number.
+
+---------------------------------------------------------------------
+Challenge 1 of Lab 4
+
+Add glock
+add console lock on cprintf()
+need to do further work
+
+---------------------------------------------------------------------
+Challenge 2 of Lab 4
+
+O(1) fixed-priority scheduler is added to JOS
+
+DATA STRUCTURE
+
+Two arrays (active, expired) of runqueues are added to JOS. These queues
+are allocated in x64_vm_init(). Each array has 40 slots of queues.
+Struct Env is also modified to add the priority and pri_link fields. The
+priority field stores the fixed-priority of the environment. The pri_link
+field is used in our runqueue to point to the next environment with same
+priority. When initializing, those fields are set to 0 and NULL,
+respectively.
+
+CREATE AN ENVIRONMENT WITH PRIORITY
+
+env_create() is modified with a new argument priority. The function now
+sets the priority field of the environment structure then enqueue it into
+the runqueue of expired array. The macro ENV_CREATE is also modified to
+adapt to env_create(). The default priority (PRI_DEF) is 20.
+
+FORK AN ENVIRONMENT WITH PRIORITY
+
+By default, the child environment has the same priority of the parent
+environment. At the end of sys_exofork() the new environment will enqueue
+the runqueue of exipred array.
+
+FREE AN ENVIRONMENT WITH PRIORITY
+
+env_free() is modified to call function sched_free() to remove an
+environment from the runqueue of expired array.
+
+SCHEDULING WITH PRIORITY
+
+The scheduler now scan the active array from the highest priority (=0) to
+the lowest priority (=39). When the scheduler encounter an environment
+with status ENV_RUNNABLE, it dequeue this environment and enqueue it into
+the runqueue in expired array of the same priority then try to run it.
+If the scheduler can not find any runnable environment in the active array,
+it will swap the active array with expired array then try again. After the
+second scan if it still fails, the scheduler will try to run current
+environment (if possible) or call sched_halt().
+
+TEST PROGRAM (user/printa.c printb.c printd.c)
+
+To invoke the test program, type 'schedtest' in the monitor. The program
+creates 3 environments (PRI_DEF = 20) then call scheduler:
+    ENV_CREATE(user_printa, ENV_TYPE_USER, PRI_DEF);
+    ENV_CREATE(user_printb, ENV_TYPE_USER, PRI_DEF - 10);
+    ENV_CREATE(user_printd, ENV_TYPE_USER, PRI_DEF + 10);
+The sequence should be 'BAD'.
+
+---------------------------------------------------------------------
+Challenge 3 of Lab 4
+
+FPU Support:
+
+* Modify the Trapframe structure in <inc/trap.h>, add 512 bytes FxRegs.
+
+* Modify _alltraps in trapentry.S, use FXSAVE and FXRSTOR to save/restore
+  x87 FPU, MMX Technology, and SSE State
+
+* Modify env_pop_tf() in env.c, pop the trap frame correctly
+
+Test program (user/fputest.c)
+
+We wrote a user program to use FLDPI instruction to get PI from FPU. Since
+JOS has poor support to floating-point numbers (none math functions provided,
+any arguments or return values as float/double will cause error), we use
+the conversion and arithmetic instructions of FPU to print out PI. The test
+program is in 'user/fputest.c'. You can type command 'fputest' in the monitor
+to invoke the program.
+
+---------------------------------------------------------------------
+Challenge 4 of Lab 4
+
+Snapshot of child environment
+
+DATA STRUCTURE
+
+We define the struct EnvSnapshot in <inc/env.h>. This structure saves the Env
+struct and stack page of the environment.
+
+    struct EnvSnapshot {
+        struct Env env;
+        uint8_t stack[PGSIZE];
+    };
+
+The EnvSnapshot is over 4096 bytes, so we make our block malloc/free functions
+of challenge 4 of lab 2 become system calls. See <inc/lib.h> <inc/syscall.h>
+<kern/syscall.c> <lib/syscall.c> for more details.
+
+SYSTEM CALLS
+
+int sys_env_save(envid_t envid, struct EnvSnapshot *ess);
+
+The sys_env_save() function use envid2env() and user_mem_check() to check the
+validity of the environment id and the memory space of EnvSnapshot structure.
+Then save the env structure and the content of stack page into 'ess'.
+
+int sys_env_load(envid_t envid, struct EnvSnapshot *ess);
+
+The sys_env_load() function use envid2env() and user_mem_check() to check the
+validity of the environment id and the memory space of EnvSnapshot structure.
+Then load the env structure and the content of stack page from 'ess'.
+
+void *sys_b_malloc(size_t n);
+
+This is the block malloc function in challege 4 of lab 2. We use it to malloc
+the memory space to store struct EnvSnapShot.
+
+void sys_b_free(void *va);
+
+This is the block free function in challege 4 of lab 2. We use it to free
+the memory space to store struct EnvSnapShot.
+
+TEST PROGRAM (user/snapshottest.c)
+
+We wrote a program to test the snapshot feature. To invoke the test program from
+the monitor, type 'snapshottest' then press enter.
+The program first read a number (0-9) from user input, then fork a child. The
+parent process will run 10 loops, starting from 0. At the second loop it will
+save the running state of the child process. And at the ninth loop it will load
+the running state to the child process. The child process will run 25 loops
+starting from the number given by user. You can see after the loading, the child
+process just reverse back to previous state.
+
+MISC
+
+We only save the vital state of the environment. If we really want a full backup
+of the environment, we may also need to save: the extra pages of the stack, the
+global variables, the memory mappings (all page tables), and all the pages which
+the environment is using. Then the time and space cost will be very expensive.
+
+---------------------------------------------------------------------
+Challenge 5 of Lab 4
+
+User Exception Handler
+
+We provide a new lib function to allow users to handle the exceptions by
+themselves. The basic idea is same as user page fault handler.
+In <lib/exception.c> we have the lib function:
+    void set_exception_handler(int trapno, eHandler handler);
+The assembly language exception entrypoints are defined in <lib/eentry.S>.
+
+Test program (user/ehandlertest.c)
+
+Type 'ehandlertest' in the monitor to invoke the test program. The program
+registers three exception handlers on divide-by-zero, illegal opcode and
+general protection fault.
+
+---------------------------------------------------------------------
+Challenge 6 of Lab 4
+
+Shared-memory fork()
+
+Implement sfork() in <lib/fork.c>. Now the child and the parent share all
+their memory pages (map) except for pages in the stack area (COW).
+
+---------------------------------------------------------------------
+Challenge 7 of Lab 4
+
+BENCHMARKING TEST PROGRAM (user/forktest.c)
+
+We use RDTSC instruction to benchmark the performance of different approachs
+of fork(). Type 'forktest' in the monitor to invoke the test program.
+One test result is:
+  [dumbfork: 9145800]    [fork: 7640176]    [sfork: 4278556]
+Dumbfork takes a lot of ticks on switching between user mode and kernel mode.
+Our fork() takes less time since its work is done in one switch. The shared-
+memory fork() takes less time than fork() because it doesn't need to modify
+the PTE_W / PTE_COW flags thus uses less calls.
+Although the ticks do not show the actual clock cycles of running time, you
+can get rough comparison result from the numbers.
+
+
+
+---------------------------------------------------------------------
+Challenge 9 of Lab 4
+
+Concurrent Matrix Multiplication
+
+Calculate IN * A (user/matrix.c)
+In the monitor, use command 'matrixtest' to invoke the test program.
+We use our fork() to fork 12 child processes. Every node know its right and
+bottom nodes. The parent node feeds three input nodes (1,0) (2,0) (3,0) the
+value of matrix IN row by row. And nine center nodes accept the numbers passed
+from their left and top. The final result is sent back to parent node.
+
+ +---+    +---+    +---+    +---+    +---+
+ | I | → |1,0| → |1,1| → |1,2| → |1,3|
+ | N |    +---+    +---+    +---+    +---+
+ | P |               ↓        ↓        ↓
+ | U |    +---+    +---+    +---+    +---+
+ | T | → |2,0| → |2,1| → |2,2| → |2,3|
+ |   |    +---+    +---+    +---+    +---+
+ | S |               ↓        ↓        ↓
+ | T |    +---+    +---+    +---+    +---+
+ | R | → |3,0| → |3,1| → |3,2| → |3,3|
+ | E |    +---+    +---+    +---+    +---+
+ | A |               ↓        ↓        ↓
+ | M +-----------------------------------+
+ | +           OUTPUT STREAM             |
+ +---------------------------------------+
+
+ NOTE:
+   1.To simplify the program, we make matrix A as a constant matrix and every
+   child can access it directly. It is almost the same as the parent node gets
+   input from user then forks children and every child has matrix A. We just
+   don't want to type the numbers every time the program runs.
+   2.And the IN matrix is also a constant matrix (coz we are lazy...). But our
+   child nodes only accept the numbers from IPC message.

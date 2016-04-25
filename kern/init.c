@@ -19,6 +19,7 @@
 #include <kern/spinlock.h>
 #include <kern/time.h>
 #include <kern/pci.h>
+#include <kern/sched.h>
 
 uint64_t end_debug;
 
@@ -44,13 +45,14 @@ i386_init(void)
 	cprintf("6828 decimal is %o octal!\n", 6828);
 
 	extern char end[];
-	end_debug = read_section_headers((0x10000+KERNBASE), (uintptr_t)end); 
+	end_debug = read_section_headers((0x10000+KERNBASE), (uintptr_t)end);
 
 	// Lab 2 memory management initialization functions
 	x64_vm_init();
 
 	// Lab 3 user environment initialization functions
 	env_init();
+	sched_init(); // challenge 2 of lab 4 add schedule queue
 	trap_init();
 
 	// Lab 4 multiprocessor initialization functions
@@ -66,24 +68,73 @@ i386_init(void)
 
 	// Acquire the big kernel lock before waking up APs
 	// Your code here:
+	//lock_kernel();
+	//cprintf("lock in i386_init\n");
+	lock_g(GLOCK_PGA | GLOCK_SCH);
 
 	// Starting non-boot CPUs
 	boot_aps();
 
 	// Start fs.
-	ENV_CREATE(fs_fs, ENV_TYPE_FS);
+	ENV_CREATE(fs_fs, ENV_TYPE_FS, PRI_DEF);
 
 #if !defined(TEST_NO_NS)
 	// Start ns.
-	ENV_CREATE(net_ns, ENV_TYPE_NS);
+	//ENV_CREATE(net_ns, ENV_TYPE_NS);
+	ENV_CREATE(net_ns, ENV_TYPE_NS, PRI_DEF);
 #endif
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!
-	ENV_CREATE(TEST, ENV_TYPE_USER);
+	//ENV_CREATE(TEST, ENV_TYPE_USER);
+	ENV_CREATE(TEST, ENV_TYPE_USER, PRI_DEF);
 #else
 	// Touch all you want.
-	ENV_CREATE(user_icode, ENV_TYPE_USER);
+	//ENV_CREATE(user_primes, ENV_TYPE_USER);
+
+	// Below are Lab 3 test codes
+	//ENV_CREATE(user_hello, ENV_TYPE_USER);
+
+	// Lab 3: Exercise 9 - Your code here
+	//ENV_CREATE(user_divzero, ENV_TYPE_USER);
+	//ENV_CREATE(user_softint, ENV_TYPE_USER);
+	//ENV_CREATE(user_badsegment, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultread, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultreadkernel, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultwrite, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultwritekernel, ENV_TYPE_USER);
+	//ENV_CREATE(user_breakpoint, ENV_TYPE_USER);
+	//ENV_CREATE(user_testbss, ENV_TYPE_USER);
+	//ENV_CREATE(user_hello, ENV_TYPE_USER);
+	//ENV_CREATE(user_buggyhello, ENV_TYPE_USER);
+	//ENV_CREATE(user_buggyhello2, ENV_TYPE_USER);
+
+	// Lab 3: Exercise 10 - Your code here
+	//ENV_CREATE(user_evilhello, ENV_TYPE_USER);
+
+	// Below are Lab 4 test codes
+	//ENV_CREATE(user_yield, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultread, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultdie, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultalloc, ENV_TYPE_USER);
+	//ENV_CREATE(user_faultallocbad, ENV_TYPE_USER);
+	//ENV_CREATE(user_forktree, ENV_TYPE_USER);
+	//ENV_CREATE(user_spin, ENV_TYPE_USER);
+	//ENV_CREATE(user_stresssched, ENV_TYPE_USER);
+	//ENV_CREATE(user_sendpage, ENV_TYPE_USER);
+	//ENV_CREATE(user_pingpong, ENV_TYPE_USER);
+	//ENV_CREATE(user_primes, ENV_TYPE_USER);
+
+	// Below are Lab 5 test codes
+	//ENV_CREATE(user_testfile, ENV_TYPE_USER);
+	//ENV_CREATE(user_spawnhello, ENV_TYPE_USER);
+	//ENV_CREATE(user_testpteshare, ENV_TYPE_USER);
+	//ENV_CREATE(user_testfdsharing, ENV_TYPE_USER);
+	//ENV_CREATE(user_testkbd, ENV_TYPE_USER);
+	//ENV_CREATE(user_icode, ENV_TYPE_USER);
+
+	// Below are Lab 6 test codes
+	ENV_CREATE(user_testtime, ENV_TYPE_USER, PRI_DEF);
 #endif // TEST*
 
 	// Should not be necessary - drains keyboard because interrupt has given up.
@@ -114,12 +165,12 @@ boot_aps(void)
 		if (c == cpus + cpunum())  // We've started already.
 			continue;
 
-		// Tell mpentry.S what stack to use 
+		// Tell mpentry.S what stack to use
 		mpentry_kstack = percpu_kstacks[c - cpus] + KSTKSIZE;
 		// Start the CPU at mpentry_start
 		lapic_startap(c->cpu_id, PADDR(code));
 		// Wait for the CPU to finish some basic setup in mp_main()
-		while(c->cpu_status != CPU_STARTED)
+		while (c->cpu_status != CPU_STARTED)
 			;
 	}
 }
@@ -128,7 +179,7 @@ boot_aps(void)
 void
 mp_main(void)
 {
-	// We are in high EIP now, safe to switch to kern_pgdir 
+	// We are in high EIP now, safe to switch to kern_pgdir
 	lcr3(boot_cr3);
 	cprintf("SMP: CPU %d starting\n", cpunum());
 
@@ -142,9 +193,13 @@ mp_main(void)
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
+	//lock_kernel();
+	//cprintf("lock in mp_main\n");
+	lock_g(GLOCK_PGA | GLOCK_SCH);
+	sched_yield();
 
 	// Remove this after you finish Exercise 4
-	for (;;);
+	//for (;;);
 }
 
 /*

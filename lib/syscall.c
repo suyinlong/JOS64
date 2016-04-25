@@ -31,7 +31,7 @@ syscall(int num, int check, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 		  "S" (a5)
 		: "cc", "memory");
 
-	if(check && ret > 0)
+	if (check && ret > 0)
 		panic("syscall %d returned %d (> 0)", num, ret);
 
 	return ret;
@@ -121,4 +121,47 @@ unsigned int
 sys_time_msec(void)
 {
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
+}
+
+int
+sys_env_save(envid_t envid, struct EnvSnapshot *ess)
+{
+	return syscall(SYS_env_save, 1, envid, (uint64_t)ess, 0, 0, 0);
+}
+
+int
+sys_env_load(envid_t envid, struct EnvSnapshot *ess)
+{
+	return syscall(SYS_env_load, 1, envid, (uint64_t)ess, 0, 0, 0);
+}
+
+void *
+sys_b_malloc(size_t n)
+{
+	return (void *)syscall(SYS_b_malloc, 0, n, 0, 0, 0, 0);
+}
+
+void
+sys_b_free(void *va)
+{
+	syscall(SYS_b_free, 0, (uint64_t)va, 0, 0, 0, 0);
+	return;
+}
+
+int
+sys_env_set_exception_upcall(envid_t env, int trapno, void *upcall)
+{
+	return syscall(SYS_env_set_exception_upcall, 1, env, trapno, (uint64_t)upcall, 0, 0);
+}
+
+uint64_t
+sys_sipc_try_send(envid_t envid, uint64_t value)
+{
+	return syscall(SYS_sipc_try_send, 0, envid, value, 0, 0, 0);
+}
+
+uint64_t
+sys_sipc_recv(envid_t envid)
+{
+	return syscall(SYS_sipc_recv, 0, envid, 0, 0, 0, 0);
 }

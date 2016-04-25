@@ -35,7 +35,10 @@ KERN_SRCFILES :=	kern/entry.S \
 			kern/libdwarf_frame.c \
 			kern/libdwarf_lineno.c \
 			kern/libdwarf_loc.c \
-			kern/elf_rw.c
+			kern/elf_rw.c \
+			kern/mmutils.c \
+			kern/pmaputils.c \
+			kern/disasm/disasm.c
 
 
 # Source files for LAB4
@@ -99,6 +102,17 @@ KERN_BINFILES +=	user/testpteshare \
 			user/primespipe \
 			user/testkbd \
 			user/testshell
+
+# Binary files for our challenge problems
+KERN_BINFILES +=	user/fputest \
+			user/snapshottest \
+			user/ehandlertest \
+			user/forktest \
+			user/printa \
+			user/printb \
+			user/printd \
+			user/matrix \
+			user/powerseries
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))
 KERN_OBJFILES := $(patsubst %.S, $(OBJDIR)/%.o, $(KERN_OBJFILES))

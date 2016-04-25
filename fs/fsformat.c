@@ -250,10 +250,10 @@ main(int argc, char **argv)
 	startdir(sb, &sbin);
 
 	for (i = 3; i < argc; i++) {
-		if(strcmp("-b", argv[i]) == 0) {
+		if (strcmp("-b", argv[i]) == 0) {
 			flag = FLAG_BIN;
 			continue;
-		} else if(strcmp("-sb", argv[i]) == 0) {
+		} else if (strcmp("-sb", argv[i]) == 0) {
 			flag = FLAG_SBIN;
 			continue;
 		}

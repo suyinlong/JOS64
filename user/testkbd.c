@@ -18,7 +18,7 @@ umain(int argc, char **argv)
 	if ((r = dup(0, 1)) < 0)
 		panic("dup: %e", r);
 
-	for(;;){
+	for ( ; ; ) {
 		char *buf;
 
 		buf = readline("Type a line: ");

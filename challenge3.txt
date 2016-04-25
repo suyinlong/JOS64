@@ -1,3 +1,20 @@
 List challenge problems completed as part of the lab 3 handin, as well
 as the problem number.  If you worked any previous lab challenges and
 submitted them with this lab, list them here, along with the lab number.
+
+---------------------------------------------------------------------
+Challenge 1 of Lab 3
+
+We modify the macros in trapentry.S to automatically generate a entry
+table for trap.c to use.
+When using TRAPHANDLER and TRAPHANDLER_NOEC, the macros add a new entry
+to our global symbol 'entry_array' in the data segment. We also add
+a padding at the end of entry_array to indicate 'end of array'.
+Now in trap_init(), we only need to use a for-loop to install all the
+handlers.
+
+---------------------------------------------------------------------
+Challenge 2 of Lab 3
+
+Add simple debug command s (single step), c (continue)
+need to do further work

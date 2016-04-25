@@ -41,9 +41,9 @@ ls1(const char *prefix, bool isdir, off_t size, const char *name)
 {
 	const char *sep;
 
-	if(flag['l'])
+	if (flag['l'])
 		printf("%11d %c ", size, isdir ? 'd' : '-');
-	if(prefix) {
+	if (prefix) {
 		if (prefix[0] && prefix[strlen(prefix)-1] != '/')
 			sep = "/";
 		else
@@ -51,7 +51,7 @@ ls1(const char *prefix, bool isdir, off_t size, const char *name)
 		printf("%s%s", prefix, sep);
 	}
 	printf("%s", name);
-	if(flag['F'] && isdir)
+	if (flag['F'] && isdir)
 		printf("/");
 	printf("\n");
 }

@@ -13,6 +13,8 @@
 #include <kern/kdebug.h>
 #include <kern/dwarf_api.h>
 #include <kern/trap.h>
+#include <kern/mmutils.h>
+#include <kern/disasm/disasm.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -27,6 +29,27 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Backtrace", mon_backtrace },
+	{ "pinfo", "Display kernel page information", mon_mm_pinfo},
+	{ "showmaps", "Display the mappings within the range", mon_mm_showmaps},
+	{ "setmap", "Set the mapping permission", mon_mm_setmap},
+	{ "dumpmem", "Dump memory at virtual or physical address", mon_mm_dumpmem},
+	{ "binfo", "Show the BlockInfo entries", mon_mm_binfo},
+	{ "bmalloc", "Malloc a contiguous block", mon_mm_bmalloc},
+	{ "bfree", "Free a contiguous block", mon_mm_bfree},
+	{ "bsplit", "Split a contiguous block into equal pieces", mon_mm_bsplit},
+	{ "bcoalesce", "Coalesce several blocks into one block", mon_mm_bcoalesce},
+	{ "u", "Debug command u", disasm_u},
+	{ "s", "Debug command s", disasm_s},
+	{ "c", "Debug command c", disasm_c},
+	{ "einfo", "Display environment information", mon_mm_einfo},
+	{ "fputest", "Test the FPU instructions", mon_mm_fputest},
+	{ "snapshottest", "Test the Snapshot features", mon_mm_snapshottest},
+	{ "ehandlertest", "Test the user exception handler", mon_mm_ehandlertest},
+	{ "forktest", "Test the fork performance", mon_mm_forktest},
+	{ "schedtest", "Test the fixed-priority scheduler", mon_mm_schedtest},
+	{ "matrixtest", "Test the matrix multiplication", mon_mm_matrixtest},
+	{ "powerseriestest", "Test the power series calculator", mon_mm_powerseriestest},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -62,6 +85,36 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	int i;
+	uint32_t arg;				// argument
+	uint64_t rbp, rip;			// rbp and rip
+	struct Ripdebuginfo info;	// backtrace info structure
+
+	cprintf("\033[41;36mStack backtrace:\033[0m\n");
+
+	// read rbp and rip from register
+	// call debuginfo_rip to get backtrace information
+	rbp = read_rbp();
+	read_rip(rip);
+	debuginfo_rip(rip, &info);
+
+	while (rbp != 0) {
+		// print stack and debug information
+		cprintf("  rbp %016x  rip %016x\n", rbp, rip);
+		cprintf("       %s:%d: ", info.rip_file, info.rip_line);
+		for (i = 0; i < info.rip_fn_namelen; i++)
+			cprintf("%c", info.rip_fn_name[i]);
+		cprintf("+%016x", rip - info.rip_fn_addr);
+		cprintf("  args:%d ", info.rip_fn_narg);
+		for (i = 0; i < info.rip_fn_narg; i++)
+			cprintf(" %016x", *((uint32_t *) (rbp - (i + 1) * 4)));
+		cprintf("\n");
+		// backtrace to upper level
+		rip = *((uint64_t *) (rbp + 8));
+		rbp = *((uint64_t *) rbp);
+		debuginfo_rip(rip, &info);
+	}
+
 	return 0;
 }
 
@@ -119,8 +172,10 @@ monitor(struct Trapframe *tf)
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
 
-	if (tf != NULL)
-		print_trapframe(tf);
+	if (tf != NULL) {
+		//print_trapframe(tf);
+		cprintf("\033[0;33mReturn to kernel monitor due to: %s\033[0m\n", (tf->tf_trapno == 1) ? "Debug" : ((tf->tf_trapno == 3) ? "Breakpoint" : "\033[0;31mUnknown"));
+	}
 
 	while (1) {
 		buf = readline("K> ");

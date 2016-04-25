@@ -215,7 +215,22 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	// so filling in ret will overwrite req.
 	//
 	// LAB 5: Your code here
-	panic("serve_read not implemented");
+	struct OpenFile *o;
+	int r, size;
+
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+
+	size = req->req_n;
+	if (size > PGSIZE)
+		size = PGSIZE;
+
+	if ((r = file_read(o->o_file, ret->ret_buf, size, o->o_fd->fd_offset)) < 0)
+		return r;
+
+	o->o_fd->fd_offset += r;
+	return r;
+	//panic("serve_read not implemented");
 }
 
 
@@ -230,7 +245,25 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	struct OpenFile *o;
+	int r, size;
+
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+
+	size = req->req_n;
+	if (size > PGSIZE)
+		size = PGSIZE;
+
+	if (o->o_file->f_size < o->o_fd->fd_offset + size)
+		o->o_file->f_size = o->o_fd->fd_offset + size;
+
+	if ((r = file_write(o->o_file, req->req_buf, size, o->o_fd->fd_offset)) < 0)
+		return r;
+
+	o->o_fd->fd_offset += r;
+	return r;
+	//panic("serve_write not implemented");
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
@@ -363,6 +396,9 @@ umain(int argc, char **argv)
 
 	serve_init();
 	fs_init();
+
+	// note: commented for lab6
+	//fs_test();
 	serve();
 }
 
