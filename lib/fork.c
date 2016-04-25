@@ -168,7 +168,7 @@ int sfork(void) {
 	int r;
 	envid_t envid;
 	void *addr;
-	int i, j, k, l, ptx, stack_ptx = VPN(USTACKTOP - PGSIZE);
+	int i, j, k, l, ptx, stack_ptx = VPN(USTACKTOP - PGSIZE), perm;
 
 	set_pgfault_handler(pgfault);
 
@@ -218,14 +218,20 @@ int sfork(void) {
 						if (ptx != VPN(UXSTACKTOP - PGSIZE)) {
 							if (ptx >= stack_ptx && ptx <= VPN(USTACKTOP - PGSIZE)) {
 								// user stack, COW
-								if ((r = duppage(envid, ptx)) < 0)
+								if ((r = duppage(envid, ptx)) < 0) {
+									cprintf("user stack COW error\n");
 									return r;
+								}
 							}
-							else {
+							else if (ptx >= VPN(UTEXT)) {
 								// otherwise, shared-memory
 								addr = (void *)((uintptr_t)ptx * PGSIZE);
-								if ((r = sys_page_map(0, addr, envid, addr, PTE_P | PTE_U | PTE_W)) < 0)
+								perm = uvpt[ptx] & 0xFFF;
+								if ((r = sys_page_map(0, addr, envid, addr, perm)) < 0) {
+									cprintf("sys_page_map error %e\n", r);
+									cprintf("addr %x envid %x\n", addr, envid);
 									return r;
+								}
 							}
 						}
 					ptx++;

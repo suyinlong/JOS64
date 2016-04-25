@@ -2,14 +2,14 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-21 10:35:06
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-23 13:23:41
+* @Last Modified time: 2016-04-23 13:30:58
 */
 
 // Power series
 
 #include <inc/lib.h>
 
-#define MAX_N_COEFFICIENTS  6
+#define MAX_N_COEFFICIENTS  4
 
 // Opcodes on stream
 enum {
