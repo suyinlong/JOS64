@@ -621,6 +621,10 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 	case SYS_env_set_trapframe:
 		return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
 
+	// note: modified for LAB6
+	case SYS_time_msec:
+		return sys_time_msec();
+
 	case SYS_env_save:
 		return sys_env_save((envid_t)a1, (struct EnvSnapshot *)a2);
 	case SYS_env_load:

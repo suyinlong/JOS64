@@ -44,4 +44,4 @@ Transmitting packet 0
 Welcome to the JOS kernel monitor!
 Type 'help' for a list of commands.
 [0;33mReturn to kernel monitor due to: Breakpoint[0m
-qemu: terminating on signal 15 from pid 10269
+qemu: terminating on signal 15 from pid 2100

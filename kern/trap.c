@@ -238,13 +238,13 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 4: Your code here.
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
 		lapic_eoi();
-		sched_yield();
 
 		// Be careful! In multiprocessors, clock interrupts are
 		// triggered on every CPU.
 		// LAB 6: Your code here.
 		time_tick();
 
+		sched_yield();
 		return;
 	}
 
