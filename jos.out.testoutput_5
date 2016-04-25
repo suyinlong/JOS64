@@ -1,0 +1,28 @@
++ cc[USER] net/testoutput.c
++ cc[USER] net/timer.c
++ cc[USER] net/input.c
++ cc[USER] net/output.c
++ ld obj/net/testoutput
++ cc[USER] net/testinput.c
++ ld obj/net/testinput
++ cc[USER] net/serv.c
++ ld obj/net/ns
++ ld obj/kern/kernel
++ mk obj/kern/kernel.img
+6828 decimal is XXX octal!
+
+e820 MEMORY MAP
+size: 20, address: 0x0000000000000000, length: 0x000000000009fc00, type: 1
+size: 20, address: 0x000000000009fc00, length: 0x0000000000000400, type: 2
+size: 20, address: 0x00000000000f0000, length: 0x0000000000010000, type: 2
+size: 20, address: 0x0000000000100000, length: 0x000000000fefe000, type: 1
+size: 20, address: 0x000000000fffe000, length: 0x0000000000002000, type: 2
+size: 20, address: 0x00000000fffc0000, length: 0x0000000000040000, type: 2
+
+Physical memory: 256M available, base = 636K, extended = 261120K, npages = 65536
+Pages limited to 3276800 by upage address range (12800MB), Pages limited to 134201344 by remapped phys mem (524224MB)
+kernel panic on CPU 0 at kern/pmap.c:247: x64_vm_init: this function is not finished
+
+Welcome to the JOS kernel monitor!
+Type 'help' for a list of commands.
+qemu: terminating on signal 15 from pid 22049
