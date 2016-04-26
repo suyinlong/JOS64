@@ -33,6 +33,7 @@ PCI: 00:01.1: 8086:7010: class: 8000090800000001.8000090800000001 (Storage contr
 PCI: 00:01.3: 8086:7113: class: 80000b0800000006.80000b0800000080 (Bridge device) irq: 549755813897
 PCI: 00:02.0: 1013:00b8: class: 8000100800000003.8000100800000000 (Display controller) irq: 549755813888
 PCI: 00:03.0: 8086:100e: class: 8000180800000002.8000180800000000 (Network controller) irq: 549755813899
+PCI function 00:03.0 (8086:100e) enabled
 FS is running
 FS can do I/O
 Device 1 presence: 1
@@ -44,4 +45,4 @@ Transmitting packet 0
 Welcome to the JOS kernel monitor!
 Type 'help' for a list of commands.
 [0;33mReturn to kernel monitor due to: Breakpoint[0m
-qemu: terminating on signal 15 from pid 1957
+qemu: terminating on signal 15 from pid 8217
