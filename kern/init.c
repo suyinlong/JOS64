@@ -134,7 +134,7 @@ i386_init(void)
 	//ENV_CREATE(user_icode, ENV_TYPE_USER);
 
 	// Below are Lab 6 test codes
-	ENV_CREATE(user_testtime, ENV_TYPE_USER, PRI_DEF);
+	//ENV_CREATE(user_testtime, ENV_TYPE_USER, PRI_DEF);
 #endif // TEST*
 
 	// Should not be necessary - drains keyboard because interrupt has given up.

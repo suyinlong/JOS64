@@ -124,6 +124,18 @@ sys_time_msec(void)
 }
 
 int
+sys_e1000_transmit(void *addr, size_t len)
+{
+	return syscall(SYS_e1000_transmit, (uint64_t)addr, len, 0, 0, 0, 0);
+}
+
+int
+sys_e1000_receive(void *addr, int *len)
+{
+	return syscall(SYS_e1000_receive, (uint64_t)addr, (uint64_t)len, 0, 0, 0, 0);
+}
+
+int
 sys_env_save(envid_t envid, struct EnvSnapshot *ess)
 {
 	return syscall(SYS_env_save, 1, envid, (uint64_t)ess, 0, 0, 0);

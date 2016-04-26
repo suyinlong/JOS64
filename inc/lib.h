@@ -61,6 +61,9 @@ int	sys_ipc_try_send(envid_t to_env, uint64_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
 unsigned int sys_time_msec(void);
 
+int	sys_e1000_transmit(void *addr, size_t len);
+int	sys_e1000_receive(void *addr, int *len);
+
 int	sys_env_save(envid_t envid, struct EnvSnapshot *ess);
 int	sys_env_load(envid_t envid, struct EnvSnapshot *ess);
 

@@ -13,6 +13,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 #include <kern/pmaputils.h>
 
 // Print a string to the system console.
@@ -459,6 +460,29 @@ sys_time_msec(void)
 	//panic("sys_time_msec not implemented");
 }
 
+// note: modified for LAB 6
+static int
+sys_e1000_transmit(void *addr, size_t len)
+{
+	if ((uintptr_t)addr >= UTOP)
+		return -E_INVAL;
+
+	return e1000_transmit(addr, len);
+}
+
+// note: modified for LAB 6
+static int
+sys_e1000_receive(void *addr, int *len)
+{
+	if ((uintptr_t)addr >= UTOP)
+		return -E_INVAL;
+
+	if ((*len = e1000_receive(addr)) < 0)
+		return *len;
+
+	return 0;
+}
+
 // For challenge 4 of lab 4
 // system calls: sys_env_save
 //               sys_env_load  * save and load environment snapshot
@@ -624,6 +648,10 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 	// note: modified for LAB6
 	case SYS_time_msec:
 		return sys_time_msec();
+	case SYS_e1000_transmit:
+		return sys_e1000_transmit((void *)a1, (size_t)a2);
+	case SYS_e1000_receive:
+		return sys_e1000_receive((void *)a1, (int *)a2);
 
 	case SYS_env_save:
 		return sys_env_save((envid_t)a1, (struct EnvSnapshot *)a2);
