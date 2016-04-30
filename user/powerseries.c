@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-21 10:35:06
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-23 13:30:58
+* @Last Modified time: 2016-04-25 21:13:53
 */
 
 // Power series
@@ -406,7 +406,6 @@ void umain(int argc, char **argv) {
         coefficients[i] = r;
     }
 
-    cprintf("Cleaning...\n");
     sipc_send(root, STREAM_END);
 
     for (i = 0; i < MAX_N_COEFFICIENTS; i++) {

@@ -75,6 +75,8 @@ int	sys_env_set_exception_upcall(envid_t env, int trapno, void *upcall);
 uint64_t	sys_sipc_try_send(envid_t envid, uint64_t value);
 uint64_t	sys_sipc_recv(envid_t envid);
 
+int sys_ipc_try_send_2(envid_t to_env, uint64_t value, void *pg, int perm);
+
 // exception.c
 void set_exception_handler(int trapno, void (*handler)(struct UTrapframe *utf));
 

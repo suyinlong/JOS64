@@ -143,7 +143,7 @@ sched_yield(void)
 	if (target && target->env_status == ENV_RUNNING)
 		max = target->priority;
 
-	while (swap == 0) {
+	while (swap <= 1) {
 		i = 0;
 		while (i < max) {
 			// try to find a runnable environment
@@ -163,7 +163,7 @@ sched_yield(void)
 		 // if no runnable environment in the active runqueue
 		 // swap the active and expired runqueues and scan again
 		sched_swapqueue();
-		swap = 1;
+		swap += 1;
 	}
 
 	target = thiscpu->cpu_env;

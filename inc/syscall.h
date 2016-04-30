@@ -27,6 +27,7 @@ enum {
 	SYS_env_set_exception_upcall,
 	SYS_sipc_try_send,
 	SYS_sipc_recv,
+	SYS_ipc_try_send_2,
 	NSYSCALLS
 };
 

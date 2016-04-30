@@ -297,6 +297,13 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	e->env_sipc_from = 0;
 	e->env_sipc_value = 0;
 
+
+	// Challenge 8 of Lab 4
+	// IPC Sending list (queue)
+	for (i = 0; i < N_IPC_LIST; i++)
+		e->env_ipc_list[i] = 0;
+	e->env_ipc_list_entry = 0;
+
 	// commit the allocation
 	env_free_list = e->env_link;
 	*newenv_store = e;
