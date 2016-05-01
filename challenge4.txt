@@ -383,4 +383,11 @@ We use some techniques to help improve IPC performance.
 
           In general, the switch number is still between 1 and 2.
 
-2.
+2.  Pass short message via register
+    Many IPC messages are very short. We can transfer the short messages via
+    registers by carefully using them. We modify our source-specified IPC
+    (which uses 64-bit as passing values rather than 32-bit of JOS' IPC) to
+    use r15 register to pass the 8-byte message. The sender just modify the
+    trapframe of the receiver at send phase two. Then the receiver reads the
+    value from its r15 register. More bytes can be transferred if we carefully
+    design the usage of registers.

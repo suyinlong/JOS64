@@ -514,8 +514,7 @@ sys_ipc_recv(void *dstva)
 	}
 	// now sleep and wait for the sender
 	curenv->env_status = ENV_NOT_RUNNABLE;
-	// use ipc_recving flag as return value (if it is 1, then dequeue is not done yet)
-	curenv->env_tf.tf_regs.reg_rax = curenv->env_ipc_recving;
+	curenv->env_tf.tf_regs.reg_rax = 0;
 	sched_yield();
 
 	return 0;
@@ -697,7 +696,8 @@ static int sys_sipc_try_send_2(envid_t envid, uint64_t value) {
 	// if we wake up here, then it is time to write the data to receiver
 	env->env_sipc_recving = 0;
 	env->env_sipc_from = curenv->env_id;
-	env->env_sipc_value = value;  // use register to pass
+	env->env_sipc_value = value;
+	env->env_tf.tf_regs.reg_r15 = value; // use register to pass
 	env->env_status = ENV_RUNNABLE;
 
 	return 0;

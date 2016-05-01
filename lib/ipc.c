@@ -25,6 +25,7 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 	// LAB 4: Your code here.
 	// Modify to use queue so that no whiles are used in ipc_send/recv
 	// Instead use sleep and wake up
+	uint64_t r15;
 	int r;
 	void *page = pg;
 
@@ -40,7 +41,7 @@ ipc_recv_dequeue:
 		return r;
 	}
 
-	if (r == 1)
+	if (thisenv->env_ipc_recving == 1)
 		// haven't dequeue, so goes back to dequeue
 		goto ipc_recv_dequeue;
 

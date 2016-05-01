@@ -81,10 +81,13 @@ struct Env {
     // Challegne 5 of Lab 4 (exception handling)
     void *env_exception_upcall[N_TRAP_UPCALL];
 
-    // Challenge * of Lab 4 (Source-specified IPC)
+    // Challenge 10 of Lab 4 (Source-specified IPC)
     uint8_t env_sipc_recving;      // Env is blocked receiving
     envid_t env_sipc_from;      // Envid of the expected source
     uint64_t env_sipc_value;    // Data value sent to us from SIPC
+
+    // Challenge 11 of Lab 4 (short msg via register)
+    bool env_ripc_recving;
 
     // Challenge * of Lab 4 (no send while IPC)
     int env_ipc_list_entry;
