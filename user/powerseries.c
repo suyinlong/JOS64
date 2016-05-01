@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-21 10:35:06
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-25 21:13:53
+* @Last Modified time: 2016-04-30 20:18:01
 */
 
 // Power series

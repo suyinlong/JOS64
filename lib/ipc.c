@@ -61,7 +61,7 @@ ipc_recv_dequeue:
 //   Use sys_yield() to be CPU-friendly.
 //   If 'pg' is null, pass sys_ipc_recv a value that it will understand
 //   as meaning "no page".  (Zero is not the right value.)
-void
+int32_t
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
 	// LAB 4: Your code here.
@@ -84,10 +84,11 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 	r = sys_ipc_try_send(to_env, val, page, perm);
 
 	if (r != 0)
-		panic("error on ipc send procedure");
+		return r;
 
 	// second phase, write the data to the receiver
 	r = sys_ipc_try_send_2(to_env, val, page, perm);
+	return r;
 }
 
 // Find the first environment of the given type.  We'll use this to

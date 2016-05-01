@@ -19,6 +19,7 @@ int mon_mm_forktest(int argc, char **argv, struct Trapframe *tf);
 int mon_mm_schedtest(int argc, char **argv, struct Trapframe *tf);
 int mon_mm_matrixtest(int argc, char **argv, struct Trapframe *tf);
 int mon_mm_powerseriestest(int argc, char **argv, struct Trapframe *tf);
+int mon_mm_ipctest(int argc, char **argv, struct Trapframe *tf);
 
 pte_t *pml4e_walk(pml4e_t *pml4e, const void *va, int create);
 

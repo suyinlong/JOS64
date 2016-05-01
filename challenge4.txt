@@ -185,7 +185,97 @@ the PTE_W / PTE_COW flags thus uses less calls.
 Although the ticks do not show the actual clock cycles of running time, you
 can get rough comparison result from the numbers.
 
+---------------------------------------------------------------------
+Challenge 8 of Lab 4
 
+No loop ipc_send
+
+The ipc_send() has to loop since the target environment may not be in the
+mode of receiving. In order to send the message sucuessfully, the sender
+use this loop to keep trying until the target receives the message (or some
+fatal error occurs).
+
+We have modifies the ipc lib calls and system calls so that the ipc_send()
+does not need to loop. We were inspired by Liedtke's paper, 'Improving IPC
+by Kernel Design', metioned in Challenge 11. In order to achieve that, we
+need a queue to store the incoming send request per environment. Then the
+sender only need to enqueue, sleep and wait for the receiver to wake it up.
+Now we use sleep and wake-up instead of while-loop thus the ipc takes less
+CPU time.
+
+DATA STRUCTURE
+
+To simplify, we use a fixed size arraylist in env structure as our 'queue'.
+In real OS, it should be a real queue with large capacity. The 'queue'
+stores all the id of envs that want to send a message to the target env.
+
+FLOW
+
+Note: When we say wake up here, it means set the (target) env state to
+      ENV_RUNNABLE
+      When we say sleep here, it means set the (current) env state to
+      ENV_NOT_RUNNABLE and call sched_yield()
+
+IPC_SEND (syscall)
+Phase 1:
+    1. Enqueue to the receiver's queue
+    2. Check the receiver's state, if recving = 1, then wake up the receiver
+    3. Set return value (rax) as 0, then sleep
+Phase 2: [the receiver woke up the sender]
+    1. Check the receiver's state, recving should be 2 (we set this as our
+       two-phase ipc flag)
+    2. Set the receiver's ipc value, id, va, etc.
+    3. Wake up the receiver (again) and return.
+
+IPC_RECV (syscall)
+Phase 1:
+    1. Set the recving flag to 1
+    2. Check the queue. If there is some envs in the queue, try to dequeue
+       one valid sender. If there is one, wake up the sender and set recving
+       to 2.
+    3. Set the return value (rax) as recving flag (we use this to check
+       whether it has dequeued one env), then sleep
+Phase 2: [the sender woke up the receiver]
+    1. Nothing needs to be done, just return to ipc_recv at lib/ipc.c
+
+As you can see here, IPC_SEND in syscall has two parts and we seperate them
+with sleep (yield). This is because if we yield in kernel mode, it will fall
+into user mode next time it is running, which is in ipc_send of lib/ipc.c.
+So we divide the IPC_SEND as two system calls: sys_ipc_try_send and
+sys_ipc_try_send_2. The phase 2 of IPC_RECV has nothing to do, so it doesn't
+need two parts. But we really want the syscall dequeue one env properly so
+we check this in ipc_recv of lib/ipc.c.
+
+IPC_SEND (lib)
+    1. Call phase 1 of IPC_SEND system call
+    2. After waking up, check the return value (should be 0)
+    3. Call phase 2 of IPC_SEND system call
+
+IPC_RECV (lib)
+    1. Call IPC_RECV system call
+    2. After waking up, if it hasn't dequeued one env, then go to step 1
+       try to dequeue one.
+    3. Set env_store, pg, then return the value.
+
+By doing this, we make sure the IPC calls are sleep & wake up procedure.
+The scenario of multiple environments try to send to one env will not
+cause conflicts since we check the recving flag at IPC_SEND (syscall)
+step 2. When the receiver already has a excepted sender, other senders
+won't wake it up since the flag becomes 2.
+Another scenario is that when one or more senders are queued, the receiver
+suddenly exits (intentionally or not). The old while-loop IPC will almost
+immediately detect and return the error 'bad environment'. Meanwhile our
+envs are sleeping. To fix that, we modify the env_destroy() in env.c to
+wake up all the envs in the queue when the env is destroying.
+We also modify the ipc_try_send's return value. Old function returns void
+but we need to know if error occurs in the procedure rather than just
+panic in the function.
+
+To test the new IPC functions, we provide a test program (user/ipctest.c).
+Type 'ipctest' in kernel monitor to invoke it. The example program
+forks 6 children and send a number to all of them, but only receives 3
+return value. This example shows if our IPC functions can queue up sending
+requests, wake up senders and handle teminated receiver correctly.
 
 ---------------------------------------------------------------------
 Challenge 9 of Lab 4
@@ -222,3 +312,75 @@ from their left and top. The final result is sent back to parent node.
    don't want to type the numbers every time the program runs.
    2.And the IN matrix is also a constant matrix (coz we are lazy...). But our
    child nodes only accept the numbers from IPC message.
+
+COMMAND: (in kernel monitor)
+  matrixtest
+
+---------------------------------------------------------------------
+Challenge 10 of Lab 4
+
+Power series calculator
+
+Calculate the power series of sin(x+x^3) (user/powerseries.c)
+
+The program uses Doug McIlroy's methods to calculate the power series of
+sin(x+x^3).
+
+The forumla of multiply stream:
+    P = F G
+    P0 + xP' = F0G0 + x (F0G'+G0F') + x^2 F'G'
+So solving P0 is easy (P0 = F0G0). The problem can be solved recursively.
+
+The forumla of substitution stream:
+  S = F (G)
+  S0 + xS' = F0 + x G' F'(G)
+  S0 = F0 + G0 * F'(G)[0]
+Actually solving S0 is not easy. If G0 is not zero, then the S0 is the sum of
+an infinite series.
+
+Those streams fork lots of children thus are very expensive. It will overflow
+the limitation of max environments of JOS very quick.
+We also implement source-specified IPC to receive the value from desired
+target. The code is in lib/sipc.c kern/syscall.c
+
+COMMAND: (in kernel monitor)
+  powerseriestest
+
+---------------------------------------------------------------------
+Challenge 11 of Lab 4
+
+We use some techniques to help improve IPC performance.
+
+1.  Reduce the system calls & Wakeups
+    Entering and leaving kernel mode are expensive. Our implementation of
+    two-phase sleep and wake-up ipc saves a lot of mode switches. The old
+    design of ipc_send is a while loop that constantly enters and leaves
+    system call if the sending is not done.
+
+    After we changed the ipc functions, the switch numbers are:
+    +==========+========+==============+
+    | Function |    New    |    Old    |
+    +==========+===========+===========+
+    | ipc_send |     2     | 1, 2, ... |
+    | ipc_recv |    1, 2   |     1     |
+    +==========+===========+===========+
+
+    Note: Our new ipc_recv may enter & leave several times. The scenarios
+          are:
+          One Time: When entering ipc_recv, the queue is not empty and we
+                    dequeue one valid environment sucessfully.
+                    * Usually happens when one process calls send first,
+                    another calls recv later.
+          Two Time: When entering ipc_recv, there is no env in the queue
+                    or all the envs in queue are invalid (terminated maybe).
+                    So we have to dequeue one properly.
+                    * Usually happens when one process calls recv first,
+                    then comes another process calls send.
+          >2  Time: All the envs in receiver's queue are invalid but the
+                    wake-up comes constantly.
+                    * Very rare, happens when a bug or malicious program comes
+                    into ipc_send of lib, crashes after first part of ipc_send
+
+          In general, the switch number is still between 1 and 2.
+
+2.

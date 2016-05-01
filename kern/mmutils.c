@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-21 14:28:13
+* @Last Modified time: 2016-04-30 21:12:04
 */
 
 #include <inc/stdio.h>
@@ -313,11 +313,13 @@ int mm_einfo(int pflag) {
             cprintf("RUNS: %d ", envs[i].env_runs);
             cprintf("CPU: %d ", envs[i].env_cpunum);
             cprintf("PRIORITY: %d ", envs[i].priority);
-            cprintf("STATUS: %s\n",
+            cprintf("STATUS: %s ",
                 envs[i].env_status == ENV_DYING ? "DYING" :
                     (envs[i].env_status == ENV_RUNNABLE ? "RUNNABLE" :
                         (envs[i].env_status == ENV_RUNNING ? "RUNNING" :
                             (envs[i].env_status == ENV_NOT_RUNNABLE ? "NOT_RUNNABLE" : "ERROR"))));
+            cprintf("%s ", envs[i].env_ipc_recving ? "IPC_BLOCKING" : "");
+            cprintf("\n");
         }
     }
 
@@ -586,6 +588,12 @@ int mon_mm_matrixtest(int argc, char **argv, struct Trapframe *tf) {
 
 int mon_mm_powerseriestest(int argc, char **argv, struct Trapframe *tf) {
     ENV_CREATE(user_powerseries, ENV_TYPE_USER, PRI_DEF);
+    sched_yield();
+    return 0;
+}
+
+int mon_mm_ipctest(int argc, char **argv, struct Trapframe *tf) {
+    ENV_CREATE(user_ipctest, ENV_TYPE_USER, PRI_DEF);
     sched_yield();
     return 0;
 }

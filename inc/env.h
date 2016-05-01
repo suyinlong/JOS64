@@ -67,7 +67,7 @@ struct Env {
 	void *env_pgfault_upcall;	// Page fault upcall entry point
 
 	// Lab 4 IPC
-	int env_ipc_recving;		// Env is blocked receiving
+	uint8_t env_ipc_recving;		// Env is blocked receiving
 	void *env_ipc_dstva;		// VA at which to map received page
 	uint32_t env_ipc_value;		// Data value sent to us
 	envid_t env_ipc_from;		// envid of the sender
@@ -82,7 +82,7 @@ struct Env {
     void *env_exception_upcall[N_TRAP_UPCALL];
 
     // Challenge * of Lab 4 (Source-specified IPC)
-    bool env_sipc_recving;      // Env is blocked receiving
+    uint8_t env_sipc_recving;      // Env is blocked receiving
     envid_t env_sipc_from;      // Envid of the expected source
     uint64_t env_sipc_value;    // Data value sent to us from SIPC
 

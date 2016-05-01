@@ -112,6 +112,12 @@ sys_ipc_try_send(envid_t envid, uint64_t value, void *srcva, int perm)
 }
 
 int
+sys_ipc_try_send_2(envid_t envid, uint64_t value, void *srcva, int perm)
+{
+	return syscall(SYS_ipc_try_send_2, 0, envid, value, (uint64_t) srcva, perm, 0);
+}
+
+int
 sys_ipc_recv(void *dstva)
 {
 	return syscall(SYS_ipc_recv, 0, (uint64_t)dstva, 0, 0, 0, 0);
@@ -173,13 +179,13 @@ sys_sipc_try_send(envid_t envid, uint64_t value)
 }
 
 uint64_t
+sys_sipc_try_send_2(envid_t envid, uint64_t value)
+{
+	return syscall(SYS_sipc_try_send_2, 0, envid, value, 0, 0, 0);
+}
+
+uint64_t
 sys_sipc_recv(envid_t envid)
 {
 	return syscall(SYS_sipc_recv, 0, envid, 0, 0, 0, 0);
-}
-
-int
-sys_ipc_try_send_2(envid_t envid, uint64_t value, void *srcva, int perm)
-{
-	return syscall(SYS_ipc_try_send_2, 0, envid, value, (uint64_t) srcva, perm, 0);
 }

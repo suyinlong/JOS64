@@ -540,6 +540,16 @@ env_free(struct Env *e)
 void
 env_destroy(struct Env *e)
 {
+	// Modify for challenge 8 of lab 4
+	// New IPC needs to purge the queue when destroying
+	struct Env *qe;
+	int i, r;
+	for (i = 0; i < e->env_ipc_list_entry; i++) {
+		r = envid2env(e->env_ipc_list[i], &qe, 0);
+		if (r == 0)
+			qe->env_status = ENV_RUNNABLE;
+	}
+
 	// If e is currently running on other CPUs, we change its state to
 	// ENV_DYING. A zombie environment will be freed the next time
 	// it traps to the kernel.
