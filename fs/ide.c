@@ -42,6 +42,11 @@ ide_wait_ready_int(bool check_error)
 		sys_env_set_status(0, ENV_FS_WAITING);
 		sys_yield();
 	}
+	// send EOI, ack the interrupt
+	outb(0x20, 0x20);
+	outb(0xA0, 0x20);
+	// clear the nIEN flag in device control register to enable next interrupt
+	outb(0x3F6, 0);
 
 	if (check_error && (r & (IDE_DF|IDE_ERR)) != 0)
 		return -1;
@@ -132,5 +137,6 @@ ide_write(uint32_t secno, const void *src, size_t nsecs)
 
 void ide_set_wait_int() {
 	waitFun = &ide_wait_ready_int;
+	outb(0x3F6, 0);
 	cprintf("FS has changed to interrupt-driven\n");
 }

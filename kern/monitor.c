@@ -39,7 +39,6 @@ static struct Command commands[] = {
 	{ "bfree", "Free a contiguous block", mon_mm_bfree},
 	{ "bsplit", "Split a contiguous block into equal pieces", mon_mm_bsplit},
 	{ "bcoalesce", "Coalesce several blocks into one block", mon_mm_bcoalesce},
-	{ "u", "Debug command u", disasm_u},
 	{ "s", "Debug command s", disasm_s},
 	{ "c", "Debug command c", disasm_c},
 	{ "einfo", "Display environment information", mon_mm_einfo},

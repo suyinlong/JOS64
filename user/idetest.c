@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-05-02 00:09:31
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-05-02 00:43:05
+* @Last Modified time: 2016-05-02 11:06:46
 */
 
 
@@ -42,5 +42,7 @@ umain(int argc, char **argv)
     cprintf("read in parent succeeded\n");
     close(fd);
 
+    cprintf("[IDE TEST]: All succeeded. Now I cause a breakpoint, use 's' to single step or 'c' to continue.\n");
     breakpoint();
+    cprintf("[IDE TEST]: Finished.\n");
 }

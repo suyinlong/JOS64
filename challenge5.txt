@@ -1,3 +1,53 @@
 List challenge problems completed as part of the lab 5 handin, as well
 as the problem number.  If you worked any previous lab challenges and
 submitted them with this lab, list them here, along with the lab number.
+
+---------------------------------------------------------------------
+Challenge 1 of Lab 5
+
+Interrupt-driven IDE disk access
+
+We implemented the interrupt-driven IDE driver (without DMA). The old
+ide_wait_ready() function uses a while loop to keep asking the device
+status until it is ready. Now we change the wait function to sleep until
+an IRQ_IDE interrupt comes.
+
+a.  We add a interrupt handler for IRQ_IDE in 'trap.c'. It wakes up the FS
+    if the FS is waiting.
+b.  The new ide_wait_ready_int() function now reads the status register of
+    the IDE device. If the status is not ready, it sets the FS env status to
+    ENV_FS_WAITING then sleeps. The scheduler will not run the FS env with
+    status ENV_FS_WAITING.
+    When interrupt comes, FS wakes up in ide_wait_ready_int(). Try read the
+    status again. If it is not ready, wait and sleep again. Otherwise, send
+    EOI to acknowledge the interrupt and clear the nIEN flag of device control
+    register to enable next interrupt.
+
+Note: JOS masks all the interrupts in kernel mode. So when there is only one
+      env (FS) in the system (and with FS_WAITING or NOT_RUNNABLE status),
+      the IRQ_IDE interrupt won't be handled!
+      When fs_init() is executing, there is only FS in the system. If it sleeps
+      and waits, then the kernel won't wake it up. Therefore we keep PIO access
+      when booting the FS. After fs_init() is done, it switches from
+      ide_wait_ready_pio() to ide_wait_ready_int(). See ide_set_wait_int() in
+      'ide.c'.
+      Some OS of those who mask interrupts in kernel mode create an empty
+      runnable background user environment to avoid falling into kernel mode
+      so that the interrupts to be handled. We don't want to do that because we
+      love JOS' monitor and want to type our test command in it. So make sure
+      there is one runnable user env when you want FS runs correctly. But you
+      can get the idea that add a blank user env to make the FS run properly.
+
+Test: command 'idetest' in the monitor (user/idetest.c)
+      The ide test program is modified from 'testfdsharing.c'. We just add two
+      cprintf to notify there is a breakpoint coming and you can use 's' or 'c'
+      command we provided to single-step or continue.
+
+---
+Polling vs. IRQ
+Polling Advantages: Polling responds more quickly than an IRQ.
+                    The logic of polling is much simpler than waiting on an IRQ.
+Polling Disadvantage: In a multitasking environment, polling will eat up all
+                      your CPU time. However, in singletasking mode this is not
+                      an issue (the CPU has nothing better to do) -- so polling
+                      is a good thing, then.

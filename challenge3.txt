@@ -16,5 +16,14 @@ handlers.
 ---------------------------------------------------------------------
 Challenge 2 of Lab 3
 
-Add simple debug command s (single step), c (continue)
-need to do further work
+Add simple debug command s (single step), c (continue) in the directory
+'kern/disasm'.
+It uses TF (trap flag) of EFLAGS to provide signle step and continue
+function.
+
+Test: We add breakpoint test program along with the interrupt-driven
+      IDE device access test example. Type 'idetest' in the monitor,
+      and you will encounter a breakpoint. You can type s to single
+      step or c to continue. We have no time to do the command u
+      (disassemble the opcodes).
+
