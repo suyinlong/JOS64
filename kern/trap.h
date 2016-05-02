@@ -21,4 +21,6 @@ void page_fault_handler(struct Trapframe *);
 void user_exception_handler(struct Trapframe *);
 void backtrace(struct Trapframe *);
 
+void ide_intr(void);
+
 #endif /* JOS_KERN_TRAP_H */

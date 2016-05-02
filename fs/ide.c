@@ -6,6 +6,7 @@
 
 #include "fs.h"
 #include <inc/x86.h>
+#include <inc/env.h>
 
 #define IDE_BSY		0x80
 #define IDE_DRDY	0x40
@@ -14,13 +15,33 @@
 
 static int diskno = 1;
 
+static int ide_wait_ready_pio(bool check_error);
+static int ide_wait_ready_int(bool check_error);
+
+static int (*waitFun)(bool) = &ide_wait_ready_pio;
+
 static int
-ide_wait_ready(bool check_error)
+ide_wait_ready_pio(bool check_error)
 {
 	int r;
 
 	while (((r = inb(0x1F7)) & (IDE_BSY|IDE_DRDY)) != IDE_DRDY)
 		/* do nothing */;
+
+	if (check_error && (r & (IDE_DF|IDE_ERR)) != 0)
+		return -1;
+	return 0;
+}
+
+static int
+ide_wait_ready_int(bool check_error)
+{
+	int r;
+
+	while (((r = inb(0x1F7)) & (IDE_BSY|IDE_DRDY)) != IDE_DRDY) {
+		sys_env_set_status(0, ENV_FS_WAITING);
+		sys_yield();
+	}
 
 	if (check_error && (r & (IDE_DF|IDE_ERR)) != 0)
 		return -1;
@@ -33,7 +54,7 @@ ide_probe_disk1(void)
 	int r, x;
 
 	// wait for Device 0 to be ready
-	ide_wait_ready(0);
+	waitFun(0);
 
 	// switch to Device 1
 	outb(0x1F6, 0xE0 | (1<<4));
@@ -66,7 +87,7 @@ ide_read(uint32_t secno, void *dst, size_t nsecs)
 
 	assert(nsecs <= 256);
 
-	ide_wait_ready(0);
+	waitFun(0);
 
 	outb(0x1F2, nsecs);
 	outb(0x1F3, secno & 0xFF);
@@ -76,7 +97,7 @@ ide_read(uint32_t secno, void *dst, size_t nsecs)
 	outb(0x1F7, 0x20);	// CMD 0x20 means read sector
 
 	for (; nsecs > 0; nsecs--, dst += SECTSIZE) {
-		if ((r = ide_wait_ready(1)) < 0)
+		if ((r = waitFun(1)) < 0)
 			return r;
 		insl(0x1F0, dst, SECTSIZE/4);
 	}
@@ -91,7 +112,7 @@ ide_write(uint32_t secno, const void *src, size_t nsecs)
 
 	assert(nsecs <= 256);
 
-	ide_wait_ready(0);
+	waitFun(0);
 
 	outb(0x1F2, nsecs);
 	outb(0x1F3, secno & 0xFF);
@@ -101,7 +122,7 @@ ide_write(uint32_t secno, const void *src, size_t nsecs)
 	outb(0x1F7, 0x30);	// CMD 0x30 means write sector
 
 	for (; nsecs > 0; nsecs--, src += SECTSIZE) {
-		if ((r = ide_wait_ready(1)) < 0)
+		if ((r = waitFun(1)) < 0)
 			return r;
 		outsl(0x1F0, src, SECTSIZE/4);
 	}
@@ -109,3 +130,7 @@ ide_write(uint32_t secno, const void *src, size_t nsecs)
 	return 0;
 }
 
+void ide_set_wait_int() {
+	waitFun = &ide_wait_ready_int;
+	cprintf("FS has changed to interrupt-driven\n");
+}

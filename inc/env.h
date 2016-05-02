@@ -39,7 +39,8 @@ enum {
 	ENV_DYING,
 	ENV_RUNNABLE,
 	ENV_RUNNING,
-	ENV_NOT_RUNNABLE
+	ENV_NOT_RUNNABLE,
+    ENV_FS_WAITING
 };
 
 // Special environment types
@@ -85,9 +86,6 @@ struct Env {
     uint8_t env_sipc_recving;      // Env is blocked receiving
     envid_t env_sipc_from;      // Envid of the expected source
     uint64_t env_sipc_value;    // Data value sent to us from SIPC
-
-    // Challenge 11 of Lab 4 (short msg via register)
-    bool env_ripc_recving;
 
     // Challenge * of Lab 4 (no send while IPC)
     int env_ipc_list_entry;

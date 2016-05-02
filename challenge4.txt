@@ -270,6 +270,7 @@ wake up all the envs in the queue when the env is destroying.
 We also modify the ipc_try_send's return value. Old function returns void
 but we need to know if error occurs in the procedure rather than just
 panic in the function.
+We also add lock to the queue modfication operation to avoid race condition.
 
 To test the new IPC functions, we provide a test program (user/ipctest.c).
 Type 'ipctest' in kernel monitor to invoke it. The example program

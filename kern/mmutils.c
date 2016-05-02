@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-30 21:12:04
+* @Last Modified time: 2016-05-02 00:11:55
 */
 
 #include <inc/stdio.h>
@@ -594,6 +594,12 @@ int mon_mm_powerseriestest(int argc, char **argv, struct Trapframe *tf) {
 
 int mon_mm_ipctest(int argc, char **argv, struct Trapframe *tf) {
     ENV_CREATE(user_ipctest, ENV_TYPE_USER, PRI_DEF);
+    sched_yield();
+    return 0;
+}
+
+int mon_mm_idetest(int argc, char **argv, struct Trapframe *tf) {
+    ENV_CREATE(user_idetest, ENV_TYPE_USER, PRI_DEF);
     sched_yield();
     return 0;
 }

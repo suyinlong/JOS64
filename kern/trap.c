@@ -1,6 +1,7 @@
 #include <inc/mmu.h>
 #include <inc/x86.h>
 #include <inc/assert.h>
+#include <inc/env.h>
 
 #include <kern/pmap.h>
 #include <kern/trap.h>
@@ -31,7 +32,6 @@ static struct Trapframe *last_tf;
  */
 struct Gatedesc idt[256] = { { 0 } };
 struct Pseudodesc idt_pd = {0,0};
-
 
 static const char *trapname(int trapno)
 {
@@ -72,6 +72,7 @@ void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
+	extern void *syscall_handler(void);
 
 	// note: modified for challenge
 	// Challenge 1 of Lab 3
@@ -90,6 +91,27 @@ trap_init(void)
 
 	idt_pd.pd_lim = sizeof(idt)-1;
 	idt_pd.pd_base = (uint64_t)idt;
+
+	// For challenge 3 of Lab 3 SYSENTER/SYSEXIT
+	// wrmsr(MSR_IA32_SYSENTER_CS, GD_KT, 0);
+	// wrmsr(MSR_IA32_SYSENTER_ESP, KSTACKTOP, 0);
+	// wrmsr(MSR_IA32_SYSENTER_EIP, &sysenter_handler, 0);
+
+	/*uint64_t ra, rd;
+	rdmsr(MSR_AMD_EFER, ra, rd);
+	cprintf("msr rax = %016x rdx = %016x\n", ra, rd);
+	ra |= 0x01;
+	wrmsr(MSR_AMD_EFER, ra, rd);
+
+	rd = GD_KT | ((GD_UT | 0x3) << 16);
+	ra = 0;
+	wrmsr(MSR_AMD_STAR, ra, rd);
+
+	cprintf("syscall_handler: %016x\n", (uint64_t)&syscall_handler);
+	ra = (uint64_t)&syscall_handler;
+	rd = ra >> 32;
+	wrmsr(MSR_AMD_LSTAR, ra, rd);*/
+
 	// Per-CPU setup
 	trap_init_percpu();
 }
@@ -262,6 +284,11 @@ trap_dispatch(struct Trapframe *tf)
 		return;
 	}
 
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_IDE) {
+		ide_intr();
+		return;
+	}
+
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -296,7 +323,7 @@ trap(struct Trapframe *tf)
 	// Check that interrupts are disabled.  If this assertion
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
-	assert(!(read_eflags() & FL_IF));
+	//assert(!(read_eflags() & FL_IF));
 
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
@@ -418,6 +445,8 @@ page_fault_handler(struct Trapframe *tf)
 	env_destroy(curenv);
 }
 
+// By Yinlong Su
+// Challenge 5 of Lab 4
 void user_exception_handler(struct Trapframe *tf) {
 	struct UTrapframe *utf;
 
@@ -445,4 +474,31 @@ void user_exception_handler(struct Trapframe *tf) {
 		//curenv->env_id, fault_va, tf->tf_rip);
 	print_trapframe(tf);
 	env_destroy(curenv);
+}
+
+void trap_syscall() {
+	uint64_t rax;
+	//cprintf("in trap_syscall\n");
+
+	//print_trapframe(tf);
+	// curenv->env_tf = *tf;
+	// tf->tf_regs.reg_rax = syscall(tf->tf_regs.reg_rax, tf->tf_regs.reg_rdx, tf->tf_regs.reg_rcx,
+	// 				tf->tf_regs.reg_rbx, tf->tf_regs.reg_rdi, 0);
+	return;
+}
+
+
+void ide_intr(void) {
+	int i;
+	envid_t fs = 0;
+	for (i = 0; i < NENV; i++)
+		if (envs[i].env_type == ENV_TYPE_FS) {
+			fs = envs[i].env_id;
+			break;
+		}
+
+	if (envs[fs].env_status == ENV_FS_WAITING)
+		envs[fs].env_status = ENV_RUNNABLE;
+
+	sched_yield();
 }

@@ -118,6 +118,8 @@ fs_init(void)
 	// Set "bitmap" to the beginning of the first bitmap block.
 	bitmap = diskaddr(2);
 	check_bitmap();
+
+	ide_set_wait_int();
 }
 
 // Find the disk block number slot for the 'filebno'th block in file 'f'.
@@ -127,7 +129,7 @@ fs_init(void)
 // When 'alloc' is set, this function will allocate an indirect block
 // if necessary.
 //
-//  Note, for the read-only file system (lab 5 without the challenge), 
+//  Note, for the read-only file system (lab 5 without the challenge),
 //        alloc will always be false.
 //
 // Returns:

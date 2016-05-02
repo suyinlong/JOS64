@@ -126,7 +126,7 @@ i386_init(void)
 	//ENV_CREATE(user_primes, ENV_TYPE_USER);
 
 	// Below are Lab 5 test codes
-	//ENV_CREATE(user_testfile, ENV_TYPE_USER);
+	//ENV_CREATE(user_testfile, ENV_TYPE_USER, PRI_DEF);
 	//ENV_CREATE(user_spawnhello, ENV_TYPE_USER);
 	//ENV_CREATE(user_testpteshare, ENV_TYPE_USER);
 	//ENV_CREATE(user_testfdsharing, ENV_TYPE_USER);

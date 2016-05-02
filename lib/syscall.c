@@ -36,7 +36,36 @@ syscall(int num, int check, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 
 	return ret;
 }
+/*
+static inline int64_t
+fast_syscall(int num, int check, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5) {
+	// int64_t ret;
+	uint64_t es, ds, rip, cs;
+	cprintf("in syscall\n");
 
+	// asm volatile("movw %%es, %0\n"
+	// 	"movw %%ds, %1\n"
+	// 	"movw %%cs, %2\n"
+	// 	: "=m"(es),
+	// 	  "=m"(ds),
+	// 	  "=m"(cs));
+	// cprintf("before es, ds, cs %x %x %x\n", es, ds, cs);
+	syscall(SYS_env_print_trapframe, 1, 0,0,0,0,0);
+	asm volatile("syscall\n");
+		// : "=a" (ret)
+		// : "a" (num),
+		//   "d" (a1),
+		//   "b" (a2),
+		//   "D" (a3)
+		// : "cc", "memory");
+	cprintf("syscall returns\n");
+	cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");
+	// if (check && ret > 0)
+	// 	panic("sysenter %d returned %d (> 0)", num, ret);
+
+	return 0;
+}
+*/
 void
 sys_cputs(const char *s, size_t len)
 {

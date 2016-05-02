@@ -15,6 +15,7 @@
 #include <kern/time.h>
 #include <kern/e1000.h>
 #include <kern/pmaputils.h>
+#include <kern/spinlock.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -74,9 +75,6 @@ sys_env_destroy(envid_t envid)
 static void
 sys_yield(void)
 {
-	// Challenge 2 of Lab 4 (fixed-priority scheduler)
-	// add this to indicate the curenv wants to yield
-	curenv->env_status = ENV_RUNNABLE;
 	sched_yield();
 }
 
@@ -136,7 +134,7 @@ sys_env_set_status(envid_t envid, int status)
 	struct Env *env;
 	int ret;
 
-	if ((status != ENV_RUNNABLE) && (status != ENV_NOT_RUNNABLE))
+	if ((status != ENV_RUNNABLE) && (status != ENV_NOT_RUNNABLE) && (status != ENV_FS_WAITING))
 		return -E_INVAL;
 
 	if ((ret = envid2env(envid, &env, 1)) < 0)
@@ -402,6 +400,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 
 	// new code:
 	// phase one: enqueue to the receiver, and wake up the receiver if possible (when the receiver is ready to receive)
+	lock_g(GLOCK_IPC);
 	if (env->env_ipc_list_entry < N_IPC_LIST) {
 		env->env_ipc_list[env->env_ipc_list_entry++] = curenv->env_id;
 		// only wake the receiver when recving = 1 (we use 2 as 'recver already wake one sender, please dont interrupt')
@@ -411,8 +410,10 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		// queue is full...
 		// In real OS, should be a real queue with very large capacity
 		// we just simplify it here
+		unlock_g(GLOCK_IPC);
 		return -E_IPC_NOT_RECV;
 	}
+	unlock_g(GLOCK_IPC);
 	// now go to sleep, and wait for the wake up from receiver
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	curenv->env_tf.tf_regs.reg_rax = 0;
@@ -496,7 +497,7 @@ sys_ipc_recv(void *dstva)
 	struct Env *env = NULL;
 	envid_t envid;
 	int ret = -1, i;
-
+	lock_g(GLOCK_IPC);
 	if (curenv->env_ipc_list_entry > 0) {
 		// dequeue a valid env (or NULL)
 		while (ret < 0 && curenv->env_ipc_list_entry > 0) {
@@ -512,6 +513,7 @@ sys_ipc_recv(void *dstva)
 			env->env_status = ENV_RUNNABLE;
 		}
 	}
+	unlock_g(GLOCK_IPC);
 	// now sleep and wait for the sender
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	curenv->env_tf.tf_regs.reg_rax = 0;
@@ -822,6 +824,9 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 		return sys_sipc_try_send_2((envid_t)a1, (uint64_t)a2);
 	case SYS_sipc_recv:
 		return sys_sipc_recv((envid_t)a1);
+	case SYS_env_print_trapframe:
+		print_trapframe(&curenv->env_tf);
+		return 0;
 
 	default:
 		return -E_NO_SYS;

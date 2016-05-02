@@ -29,6 +29,7 @@ enum {
 	SYS_sipc_try_send,
 	SYS_sipc_try_send_2,
 	SYS_sipc_recv,
+	SYS_env_print_trapframe,
 	NSYSCALLS
 };
 

@@ -2,14 +2,14 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-21 10:35:06
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-30 20:18:01
+* @Last Modified time: 2016-05-02 01:26:22
 */
 
 // Power series
 
 #include <inc/lib.h>
 
-#define MAX_N_COEFFICIENTS  4
+#define MAX_N_COEFFICIENTS  6
 
 // Opcodes on stream
 enum {
@@ -138,6 +138,18 @@ static envid_t stream_init(void (*type)(void *), void *desc) {
     return child;
 }
 
+// split stream eid
+// use SIPC to send STREAM_SPLIT opcode
+static envid_t stream_split(envid_t eid) {
+    envid_t child;
+    //cprintf("  [split]: %08x request %08x to split\n", sys_getenvid(), eid);
+    sipc_send(eid, STREAM_SPLIT);
+    child = sipc_recv(eid, NULL);
+    //cprintf("  [split]: %08x recv from %08x child %08x\n", sys_getenvid(), eid, child);
+    return child;
+}
+
+
 // stream cycle  wait for a opcode and execute
 // OPCODE = STREAM_READ
 //          Return the sender eid
@@ -145,7 +157,7 @@ static envid_t stream_init(void (*type)(void *), void *desc) {
 //          Split a new stream then send back the child eid
 //          STREAM_END
 //          Return 0
-static envid_t stream_cycle() {
+static envid_t stream_cycle(envid_t *s1, envid_t *s2, envid_t *s3) {
     envid_t req_eid, child;
     int32_t req;
     //cprintf("stream_cycle: %08x in cycle\n", sys_getenvid());
@@ -161,6 +173,13 @@ static envid_t stream_cycle() {
             else if (child > 0) {
                 //cprintf("stream_cycle: %08x fork child %08x\n", sys_getenvid(), child);
                 sipc_send(req_eid, child);
+                // fork my substreams
+                if (s1)
+                    *s1 = stream_split(*s1);
+                if (s2)
+                    *s2 = stream_split(*s2);
+                if (s3)
+                    *s3 = stream_split(*s3);
             }
         } else if (req == STREAM_END) {
             return 0;
@@ -168,16 +187,6 @@ static envid_t stream_cycle() {
     }
 }
 
-// split stream eid
-// use SIPC to send STREAM_SPLIT opcode
-static envid_t stream_split(envid_t eid) {
-    envid_t child;
-    //cprintf("  [split]: %08x request %08x to split\n", sys_getenvid(), eid);
-    sipc_send(eid, STREAM_SPLIT);
-    child = sipc_recv(eid, NULL);
-    //cprintf("  [split]: %08x recv from %08x child %08x\n", sys_getenvid(), eid, child);
-    return child;
-}
 
 // end stream
 // use SIPC to send STREAM_END to e1, e2, e3
@@ -208,14 +217,15 @@ void sumStream(void *desc) {
     envid_t target;
     double sum, a0, a1;
     struct StreamDesc *d = (struct StreamDesc *)desc;
+    envid_t F = d->id[0], G = d->id[1];
 
     while (1) {
         // handle STREAM_READ or STREAM_END
-        if ((target = stream_cycle()) == 0)
-            stream_end(d->id[0], d->id[1], 0);
+        if ((target = stream_cycle(&F, &G, NULL)) == 0)
+            stream_end(F, G, 0);
 
-        stream_readfrom(d->id[0], &a0);
-        stream_readfrom(d->id[1], &a1);
+        stream_readfrom(F, &a0);
+        stream_readfrom(G, &a1);
         add(&a0, &a1, &sum);
         stream_writeto(target, &sum);
     }
@@ -226,16 +236,17 @@ void delayStream(void *desc) {
     int i;
     double a = 0.0f;
     struct StreamDesc *d = (struct StreamDesc *)desc;
+    envid_t F = d->id[0];
     // first send d->delay number of 0
     for (i = 0; i < d->delay; i++) {
-        if ((target = stream_cycle()) == 0)
-            stream_end(d->id[0], 0, 0);
+        if ((target = stream_cycle(&F, NULL, NULL)) == 0)
+            stream_end(F, 0, 0);
         stream_writeto(target, &a);
     }
     // then send d->id[0]
-    if ((target = stream_cycle()) == 0)
-        stream_end(d->id[0], 0, 0);
-    stream_readfrom(d->id[0], &a);
+    if ((target = stream_cycle(&F, NULL, NULL)) == 0)
+        stream_end(F, 0, 0);
+    stream_readfrom(F, &a);
     stream_writeto(target, &a);
 }
 
@@ -247,7 +258,7 @@ void multiplyStream(void *desc) {
     struct StreamDesc *d = (struct StreamDesc *)desc;
     envid_t F = d->id[0], F1, G = d->id[1], G1, M, target;
 
-    if ((target = stream_cycle()) == 0)
+    if ((target = stream_cycle(&F, &G, NULL)) == 0)
         stream_end(F, G, 0);
     stream_readfrom(F, &f0);
     stream_readfrom(G, &g0);
@@ -256,12 +267,12 @@ void multiplyStream(void *desc) {
 
     // try to read an opcode first coz we don't want to split
     // too many unnecessary envs...
-    if ((target = stream_cycle()) == 0)
+    if ((target = stream_cycle(&F, &G, NULL)) == 0)
         stream_end(F, G, 0);
 
     F1 = stream_split(F);
     G1 = stream_split(G);
-
+    d->id[0] = F; d->id[1] = G;
     M = stream_init(multiplyStream, desc);
 
     stream_readfrom(G1, &g1);
@@ -276,7 +287,7 @@ void multiplyStream(void *desc) {
         // handle STREAM_READ or STREAM_END
         // only need to close F1, G1 and M
         // since F and G is controlled by M
-        if ((target = stream_cycle()) == 0)
+        if ((target = stream_cycle(&F1, &G1, &M)) == 0)
             stream_end(F1, G1, M);
 
         stream_readfrom(G1, &g1);
@@ -301,20 +312,20 @@ void substitutionStream(void *desc) {
     struct StreamDesc *d = (struct StreamDesc *)desc;
     envid_t F = d->id[0], G1 = d->id[1], G2, M, target;
 
-    if ((target = stream_cycle()) == 0)
+    if ((target = stream_cycle(&F, &G1, NULL)) == 0)
         stream_end(F, G1, 0);
     stream_readfrom(F, &f0);
     stream_writeto(target, &f0);
 
     // try to read an opcode first coz we don't want to split
     // too many unnecessary envs...
-    if ((target = stream_cycle()) == 0)
+    if ((target = stream_cycle(&F, &G1, NULL)) == 0)
         stream_end(F, G1, 0);
     G2 = stream_split(G1);
     stream_readfrom(G2, &g0);
     // Note: If g0 is not 0, then this is an infinite problem,
     //       the recurision won't stop
-
+    d->id[0] = F; d->id[1] = G1;
     M = stream_init(substitutionStream, desc);
     d->id[0] = M;
     d->id[1] = G2;
@@ -327,7 +338,7 @@ void substitutionStream(void *desc) {
         // only need to close M
         // since M' and G2 is controlled by M
         //       F  and G1 is controlled by M'
-        if ((target = stream_cycle()) == 0)
+        if ((target = stream_cycle(&M, NULL, NULL)) == 0)
             stream_end(M, 0, 0);
     }
 }
@@ -339,7 +350,7 @@ void sinStream(void *desc) {
     envid_t target;
 
     for (n = 0; ; n++) {
-        if ((target = stream_cycle()) == 0)
+        if ((target = stream_cycle(NULL, NULL, NULL)) == 0)
             stream_end(0, 0, 0);
         if (n & 1) {
             if (n > 1) {
@@ -363,21 +374,21 @@ void polyStream(void *desc) {
     double one = 1.0f, zero = 0.0f;
     envid_t target;
 
-    if ((target = stream_cycle()) == 0)
+    if ((target = stream_cycle(NULL, NULL, NULL)) == 0)
         stream_end(0, 0, 0);
     stream_writeto(target, &zero);
-    if ((target = stream_cycle()) == 0)
+    if ((target = stream_cycle(NULL, NULL, NULL)) == 0)
         stream_end(0, 0, 0);
     stream_writeto(target, &one);
-    if ((target = stream_cycle()) == 0)
+    if ((target = stream_cycle(NULL, NULL, NULL)) == 0)
         stream_end(0, 0, 0);
     stream_writeto(target, &zero);
-    if ((target = stream_cycle()) == 0)
+    if ((target = stream_cycle(NULL, NULL, NULL)) == 0)
         stream_end(0, 0, 0);
     stream_writeto(target, &one);
 
     while (1) {
-        if ((target = stream_cycle()) == 0)
+        if ((target = stream_cycle(NULL, NULL, NULL)) == 0)
             stream_end(0, 0, 0);
         stream_writeto(target, &zero);
     }

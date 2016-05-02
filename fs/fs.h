@@ -19,6 +19,7 @@ bool	ide_probe_disk1(void);
 void	ide_set_disk(int diskno);
 int	ide_read(uint32_t secno, void *dst, size_t nsecs);
 int	ide_write(uint32_t secno, const void *src, size_t nsecs);
+void ide_set_wait_int();
 
 /* bc.c */
 void*	diskaddr(uint64_t blockno);

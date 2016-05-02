@@ -160,3 +160,31 @@ _alltraps:
 	movw 8(%rsp), %ds
 	addq $16, %rsp
 	iret
+
+// added by Yinlong Su @ May 1st
+// Challenge 3 of Lab 3 SYSENTER/SYSEXIT
+
+.globl syscall_handler
+syscall_handler:
+	subq $16, %rsp
+	movw %ds, 8(%rsp)
+	movw %es, 0(%rsp)
+
+	pushq %rcx
+	pushq %r11
+
+	movq $GD_KD, %rax
+	movq %rax, %ds
+	movq %rax, %es
+	movq %rsp, %rdi
+
+	call trap_syscall
+
+	popq %r11
+	popq %rcx
+
+	movw 0(%rsp), %es
+	movw 8(%rsp), %ds
+	addq $16, %rsp
+
+	sysretq
