@@ -338,6 +338,19 @@ int serve_recycle(void) {
 	return 0;
 }
 
+int serve_link(envid_t envid, struct Fsreq_link *req) {
+	char path1[MAXPATHLEN], path2[MAXPATHLEN];
+	int r;
+
+	memmove(path1, req->req_path1, MAXPATHLEN);
+	path1[MAXPATHLEN-1] = 0;
+
+	memmove(path2, req->req_path2, MAXPATHLEN);
+	path2[MAXPATHLEN-1] = 0;
+
+	return fs_link(path1, path2);
+}
+
 typedef int (*fshandler)(envid_t envid, union Fsipc *req);
 
 fshandler handlers[] = {
@@ -350,7 +363,9 @@ fshandler handlers[] = {
 	[FSREQ_WRITE] =		(fshandler)serve_write,
 	[FSREQ_REMOVE] =	(fshandler)serve_remove,
 	[FSREQ_SYNC] =		serve_sync,
+	// Recycle needs no argument
 	/*[FSREQ_RECYCLE] =	serve_recycle*/
+	[FSREQ_LINK] =		(fshandler)serve_link
 };
 #define NHANDLERS (sizeof(handlers)/sizeof(handlers[0]))
 

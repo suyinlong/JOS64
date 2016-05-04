@@ -125,6 +125,7 @@ int	open(const char *path, int mode);
 int	ftruncate(int fd, off_t size);
 int	remove(const char *path);
 int	sync(void);
+int link(const char *path1, const char *path2);
 
 // pageref.c
 int	pageref(void *addr);

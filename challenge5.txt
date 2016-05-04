@@ -73,3 +73,46 @@ Add new FS request: FSREQ_RECYCLE to recycle the block cache.
 sched_fs_recycle() in sched.c:
 Everytime the scheduler schedule SCH_CYCLE_FS times, it will send
 'FSREQ_RECYCLE' to FS to invoke recycling.
+When there is no env running, scheduler will send 'FSREQ_RECYCLE'
+to FS one time.
+
+---------------------------------------------------------------------
+Challenge 4 of Lab 5
+
+Inode & Hard link
+
+Our first idea was using 'Dentry Object' and 'Inode Object' like linux. Strut
+File is used as inode in both memory and disk and we create dentry object in
+memory. Then all the functions working on File need to change. And the
+walkthrough of 'Dentry' is quite different from 'File'.
+
+So we decide not to use 'dentry' but make 'File' a bit more like inode. We add
+a new type of File 'FSTYPE_LNK' as hard link. We add two fields in File:
+f_nlink and f_inode. If File is a regular file, f_nlink saves the link number
+point to this (regular) file. If File is a hard link, f_inode points to the
+(regular) file it is linked.
+
+In fs/fs.c we add function fs_link(). We made it similar to Linux link. The
+source cannot be a directory and must exist. The target must be in a valid
+directory. After linking, the source file's f_nlink will increase by 1.
+
+We also modify file_open() in fs/fs.c. If the open file is a hard link, it
+will find the actual linked file and return it. And file_remove() will
+decrease the nlink count of linked file if the deleting file is a hard link.
+
+fs/serv.c lib/file.c are also modified to provide user interface. The FS now
+accept IPC request FSREQ_LINK. We made a test program 'linktest'
+(user/linktest.c) to test the hard link.
+
+TEST (user/linktest.c)
+  command: 'linktest' in the kernel monitor
+
+  1. Create one new file 'base' and write something
+  2. Create a link 'mylink1' to 'base'
+  3. Create a link 'mylink2' to 'mylink1'
+  4. Read the content of 'base' 'mylink1' 'mylink2'
+  5. Try to delete 'base' (should fail, f_nlink=2)
+  6. Delete 'mylink1'
+  7. Try to delete 'base' (should fail, f_nlink=1)
+  8. Delete 'mylink2'
+  9. Delete 'base'

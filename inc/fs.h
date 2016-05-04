@@ -38,32 +38,13 @@ struct File {
 
 	// Challenge 4 of Lab 5
 	// inode & hardlink
-	//uint32_t f_nlink;
+	uint32_t f_nlink;
+	uint32_t f_inode;
 
 	// Pad out to 256 bytes; must do arithmetic in case we're compiling
 	// fsformat on a 64-bit machine.
-	uint8_t f_pad[256 - MAXNAMELEN - 8 - 4*NDIRECT - 4];
+	uint8_t f_pad[256 - MAXNAMELEN - 8 - 4*NDIRECT - 4 - 4 - 4];
 } __attribute__((packed));	// required only on some 64-bit machines
-
-
-// Challenge 4 of Lab 5
-// Dentry objects (only in memory)
-
-// Maximum number of Dentry objects
-#define MAXDENTRY	16
-
-struct Dentry {
-	char d_name[MAXNAMELEN];	// dentry name
-	uint32_t d_inode;			// inode number
-	struct Dentry *d_child;		// point to the first child
-	struct Dentry *d_prev;		// point to prev sibling (same dir)
-	struct Dentry *d_next;		// point to next sibling (same dir)
-	struct Dentry *d_parent;	// point to parent
-
-	struct Dentry *d_free_list; // point to next free list (only use if dentry is free)
-	// pad out to 256 bytes
-	uint8_t d_pad[256 - MAXNAMELEN - 4 - 8 * 5];
-} __attribute__((packed));
 
 // An inode block contains exactly BLKFILES 'struct File's
 #define BLKFILES	(BLKSIZE / sizeof(struct File))
@@ -71,6 +52,7 @@ struct Dentry {
 // File types
 #define FTYPE_REG	0	// Regular file
 #define FTYPE_DIR	1	// Directory
+#define FTYPE_LNK	2	// Hard link
 
 
 // File system super-block (both in-memory and on-disk)
@@ -95,7 +77,8 @@ enum {
 	FSREQ_FLUSH,
 	FSREQ_REMOVE,
 	FSREQ_SYNC,
-	FSREQ_RECYCLE
+	FSREQ_RECYCLE,
+	FSREQ_LINK
 };
 
 union Fsipc {
@@ -133,7 +116,10 @@ union Fsipc {
 	struct Fsreq_remove {
 		char req_path[MAXPATHLEN];
 	} remove;
-
+	struct Fsreq_link {
+		char req_path1[MAXPATHLEN];
+		char req_path2[MAXPATHLEN];
+	} link;
 	// Ensure Fsipc is one page
 	char _pad[PGSIZE];
 };

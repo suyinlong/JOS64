@@ -114,7 +114,8 @@ KERN_BINFILES +=	user/fputest \
 			user/matrix \
 			user/powerseries \
 			user/ipctest \
-			user/idetest
+			user/idetest \
+			user/linktest
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))
 KERN_OBJFILES := $(patsubst %.S, $(OBJDIR)/%.o, $(KERN_OBJFILES))

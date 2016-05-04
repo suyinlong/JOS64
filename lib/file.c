@@ -205,3 +205,10 @@ sync(void)
 	return fsipc(FSREQ_SYNC, NULL);
 }
 
+int link(const char *path1, const char *path2) {
+	if (strlen(path1) >= MAXPATHLEN || strlen(path2) >= MAXPATHLEN)
+		return -E_BAD_PATH;
+	strcpy(fsipcbuf.link.req_path1, path1);
+	strcpy(fsipcbuf.link.req_path2, path2);
+	return fsipc(FSREQ_LINK, NULL);
+}
