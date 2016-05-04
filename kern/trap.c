@@ -33,7 +33,7 @@ static struct Trapframe *last_tf;
 struct Gatedesc idt[256] = { { 0 } };
 struct Pseudodesc idt_pd = {0,0};
 
-static envid_t fs = 0;
+extern envid_t fs_envid;
 
 static const char *trapname(int trapno)
 {
@@ -491,17 +491,9 @@ void trap_syscall() {
 
 
 void ide_intr(void) {
-	int i;
-	// first time: search FS envid
-	if (!fs)
-		for (i = 0; i < NENV; i++)
-			if (envs[i].env_type == ENV_TYPE_FS) {
-				fs = envs[i].env_id;
-				break;
-			}
 	// wake up FS if FS is waiting
-	if (envs[fs].env_status == ENV_FS_WAITING)
-		envs[fs].env_status = ENV_RUNNABLE;
+	if (envs[fs_envid].env_status == ENV_FS_WAITING)
+		envs[fs_envid].env_status = ENV_RUNNABLE;
 
 	sched_yield();
 }

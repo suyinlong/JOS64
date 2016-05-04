@@ -25,6 +25,8 @@ void ide_set_wait_int();
 void*	diskaddr(uint64_t blockno);
 bool	va_is_mapped(void *va);
 bool	va_is_dirty(void *va);
+bool    va_is_accessed(void *va);
+void    va_clr_accessed(void *va);
 void	flush_block(void *addr);
 void	bc_init(void);
 
@@ -39,6 +41,7 @@ int	file_set_size(struct File *f, off_t newsize);
 void	file_flush(struct File *f);
 int	file_remove(const char *path);
 void	fs_sync(void);
+void    fs_recycle(void);
 
 /* int	map_block(uint32_t); */
 bool	block_is_free(uint32_t blockno);

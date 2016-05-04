@@ -333,6 +333,11 @@ serve_sync(envid_t envid, union Fsipc *req)
 	return 0;
 }
 
+int serve_recycle(void) {
+	fs_recycle();
+	return 0;
+}
+
 typedef int (*fshandler)(envid_t envid, union Fsipc *req);
 
 fshandler handlers[] = {
@@ -344,7 +349,8 @@ fshandler handlers[] = {
 	[FSREQ_SET_SIZE] =	(fshandler)serve_set_size,
 	[FSREQ_WRITE] =		(fshandler)serve_write,
 	[FSREQ_REMOVE] =	(fshandler)serve_remove,
-	[FSREQ_SYNC] =		serve_sync
+	[FSREQ_SYNC] =		serve_sync,
+	/*[FSREQ_RECYCLE] =	serve_recycle*/
 };
 #define NHANDLERS (sizeof(handlers)/sizeof(handlers[0]))
 
@@ -358,6 +364,12 @@ serve(void)
 	while (1) {
 		perm = 0;
 		req = ipc_recv((int32_t *) &whom, fsreq, &perm);
+		// FSREQ_RECYCLE is our special request
+		// recycle
+		if (req == FSREQ_RECYCLE) {
+			serve_recycle();
+			continue;
+		}
 		if (debug)
 			cprintf("fs req %d from %08x [page %08x: %s]\n",
 				req, whom, uvpt[PGNUM(fsreq)], fsreq);

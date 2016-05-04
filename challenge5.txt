@@ -51,3 +51,25 @@ Polling Disadvantage: In a multitasking environment, polling will eat up all
                       your CPU time. However, in singletasking mode this is not
                       an issue (the CPU has nothing better to do) -- so polling
                       is a good thing, then.
+
+---------------------------------------------------------------------
+Challenge 2 of Lab 5
+Reclaiming the block cache
+
+CPU automatically set page table entry PTE_A to 1 when the page or page entry
+is accessed. We can use PTE_A flag to help recycle block cache.
+
+fs_recycle() in fs/fs.c:
+In every recycling scan, we scan each data block. If the block is presented but
+not accessed, then flush the block and free the block cache. After the scan,
+set all the block PTE_A to 0.
+
+va_is_accessed() va_clr_accessed() in fs/bc.c:
+Some functions to help check and clear the PTE_A flag.
+
+serve_recycle() in fs/serv.c:
+Add new FS request: FSREQ_RECYCLE to recycle the block cache.
+
+sched_fs_recycle() in sched.c:
+Everytime the scheduler schedule SCH_CYCLE_FS times, it will send
+'FSREQ_RECYCLE' to FS to invoke recycling.

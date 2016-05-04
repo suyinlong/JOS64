@@ -25,6 +25,7 @@ uint64_t end_debug;
 
 static void boot_aps(void);
 
+envid_t fs_envid;
 
 void
 i386_init(void)
@@ -76,7 +77,13 @@ i386_init(void)
 	boot_aps();
 
 	// Start fs.
-	ENV_CREATE(fs_fs, ENV_TYPE_FS, PRI_DEF);
+	ENV_CREATE(fs_fs, ENV_TYPE_FS, PRI_FS);
+	int i;
+	for (i = 0; i < NENV; i++)
+		if (envs[i].env_type == ENV_TYPE_FS) {
+			fs_envid = envs[i].env_id;
+			break;
+		}
 
 #if !defined(TEST_NO_NS)
 	// Start ns.

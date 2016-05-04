@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-05-02 00:11:55
+* @Last Modified time: 2016-05-03 22:25:07
 */
 
 #include <inc/stdio.h>
@@ -309,7 +309,8 @@ int mm_einfo(int pflag) {
             cprintf("  # ");
             cprintf("ID: %08x ", envs[i].env_id);
             cprintf("PID: %08x ", envs[i].env_parent_id);
-            cprintf("TYPE: %s ", envs[i].env_type == ENV_TYPE_USER ? "USER" : "-FS-");
+            cprintf("TYPE: %s ", envs[i].env_type == ENV_TYPE_USER ? "USER" :
+                (envs[i].env_type == ENV_TYPE_FS ? "-FS-" : "-NS-"));
             cprintf("RUNS: %d ", envs[i].env_runs);
             cprintf("CPU: %d ", envs[i].env_cpunum);
             cprintf("PRIORITY: %d ", envs[i].priority);

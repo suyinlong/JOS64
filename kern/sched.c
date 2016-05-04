@@ -1,21 +1,49 @@
 #include <inc/assert.h>
 #include <inc/x86.h>
+#include <inc/fs.h>
 #include <kern/spinlock.h>
 #include <kern/env.h>
 #include <kern/pmap.h>
 #include <kern/monitor.h>
 
+#define SCH_CYCLE_FS 	30
 #define SCH_QUEUE_ACT   0
 #define SCH_QUEUE_EXP   1
 #define NSCH			40
 
 void sched_halt(void);
 
-// Chellange 2 of Lab 4
+// Challange 2 of Lab 4
 // O(1) Scheduler: Two arrays of runqueues: active, expired
 //
 extern void *schedqueue;
 uint64_t *sched_act_queue = NULL, *sched_exp_queue = NULL;
+// FS recycle count, if it reaches SCH_CYCLE_FS, recycle
+uint64_t sched_cycle;
+
+extern envid_t fs_envid;
+
+// Challenge 2 of Lab 5
+// Reclaim FS block
+void sched_fs_recycle(void) {
+	int r;
+	struct Env *e;
+	sched_cycle = 0;
+	// error return
+	if ((r = envid2env(fs_envid, &e, 0)) < 0)
+		return;
+	// if FS is not waiting for request, return
+	if (e->env_ipc_recving != 1)
+		return;
+	// send FSREQ_RECYCLE to FS
+	e->env_ipc_recving = 0;
+	e->env_ipc_from = 0;
+	e->env_ipc_perm = 0;
+	e->env_ipc_value = FSREQ_RECYCLE;
+	e->env_status = ENV_RUNNABLE;
+
+	env_run(e);
+}
 
 // Initial the runqueues
 void sched_init(void) {
@@ -28,6 +56,7 @@ void sched_init(void) {
 		*(sched_act_queue + i) = 0;
 		*(sched_exp_queue + i) = 0;
 	}
+	sched_cycle = 0;
 }
 
 // enqueue an environment into the exipred queue
@@ -137,6 +166,12 @@ sched_yield(void)
 	struct Env *target;
 	int i, max = NSCH, swap = 0;
 
+	// if cycle number reaches SCH_CYCLE_FS
+	// call recycle
+	sched_cycle ++;
+	if (sched_cycle >= SCH_CYCLE_FS)
+		sched_fs_recycle();
+
 	// If it is a clock interrupt, (i.e. the env does not want to yield)
 	// scan to the env's priority (make sure high priority envs run first)
 	target = thiscpu->cpu_env;
@@ -163,14 +198,13 @@ sched_yield(void)
 		 // if no runnable environment in the active runqueue
 		 // swap the active and expired runqueues and scan again
 		sched_swapqueue();
-		swap = 1;
+		swap += 1;
 	}
 
 	target = thiscpu->cpu_env;
 	if (target && target->env_status == ENV_RUNNING) {
 		env_run(target);
 	}
-
 
 	// sched_halt never returns
 	sched_halt();

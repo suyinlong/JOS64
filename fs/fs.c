@@ -119,6 +119,7 @@ fs_init(void)
 	bitmap = diskaddr(2);
 	check_bitmap();
 
+	// Set the IDE to interrupt-driven
 	ide_set_wait_int();
 }
 
@@ -510,3 +511,23 @@ fs_sync(void)
 		flush_block(diskaddr(i));
 }
 
+
+// Challenge 2 of Lab 5
+// Reclaim/Recycle the block
+void fs_recycle(void) {
+	// starting no
+	uint32_t start_blockno = 2 + (super->s_nblocks / BLKBITSIZE) + (super->s_nblocks % BLKBITSIZE > 0);
+	uint32_t i;
+	void *va;
+	// If the block is presented and the block is not accessed -> Flush the block, then free it
+	// And mark all the block not accessed (PTE_A = 0)
+	for (i = start_blockno; i < super->s_nblocks; i++) {
+		va = diskaddr(i);
+		if (va_is_mapped(va) && !va_is_accessed(va)) {
+			flush_block(va);
+			sys_page_unmap(0, va);
+		}
+		if (va_is_mapped(va))
+			va_clr_accessed(va);
+	}
+}
