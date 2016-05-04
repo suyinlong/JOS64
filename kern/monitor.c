@@ -52,6 +52,7 @@ static struct Command commands[] = {
 	{ "ipctest", "Test the sleep & wake-up IPC", mon_mm_ipctest},
 	{ "idetest", "Test the interrupt-driven IDE", mon_mm_idetest},
 	{ "linktest", "Test FS hard link", mon_mm_linktest},
+	{ "exectest", "Test the exec command", mon_mm_exectest},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 

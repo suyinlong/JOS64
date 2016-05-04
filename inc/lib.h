@@ -77,7 +77,7 @@ uint64_t	sys_sipc_try_send(envid_t envid, uint64_t value);
 uint64_t    sys_sipc_try_send_2(envid_t envid, uint64_t value);
 uint64_t	sys_sipc_recv(envid_t envid);
 
-
+int sys_exec(uint64_t rip, uint64_t rsp, void *ph, uint64_t phnum);
 
 // exception.c
 void set_exception_handler(int trapno, void (*handler)(struct UTrapframe *utf));
@@ -152,6 +152,10 @@ int     nsipc_socket(int domain, int type, int protocol);
 // spawn.c
 envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
+
+// exec.c
+int exec(const char *program, const char **argv);
+int execl(const char *program, const char *arg0, ...);
 
 // console.c
 void	cputchar(int c);

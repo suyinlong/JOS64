@@ -5,6 +5,7 @@
 #include <inc/string.h>
 #include <inc/assert.h>
 #include <inc/env.h>
+#include <inc/elf.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -16,6 +17,8 @@
 #include <kern/e1000.h>
 #include <kern/pmaputils.h>
 #include <kern/spinlock.h>
+
+#define EXECTEMP   0xe0000000
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -759,7 +762,44 @@ static int sys_sipc_recv(envid_t from) {
 	return 0;
 }
 
+static int sys_exec(uint64_t rip, uint64_t rsp, void *v_ph, uint64_t phnum) {
+	// set trap frame rip & rsp
+	curenv->env_tf.tf_rip = rip;
+	curenv->env_tf.tf_rsp = rsp;
 
+	int perm, i;
+	uint64_t tmp = EXECTEMP;
+	uint64_t va, end;
+	struct PageInfo *p;
+	struct Proghdr *ph = (struct Proghdr *)v_ph;
+
+	// load all hdr with correct perm
+	for (i = 0; i < phnum; i++, ph++) {
+		if (ph->p_type != ELF_PROG_LOAD)
+			continue;
+		perm = PTE_P | PTE_U;
+		if (ph->p_flags & ELF_PROG_FLAG_WRITE)
+			perm |= PTE_W;
+
+		end = ROUNDUP(ph->p_va + ph->p_memsz, PGSIZE);
+		for (va = ROUNDDOWN(ph->p_va, PGSIZE); va != end; tmp += PGSIZE, va += PGSIZE) {
+			if ((p = page_lookup(curenv->env_pml4e, (void *)tmp, NULL)) == NULL)
+				return -E_NO_MEM;
+			if (page_insert(curenv->env_pml4e, p, (void *)va, perm) < 0)
+				return -E_NO_MEM;
+			page_remove(curenv->env_pml4e, (void *)tmp);
+		}
+	}
+
+	if ((p = page_lookup(curenv->env_pml4e, (void *)tmp, NULL)) == NULL)
+		return -E_NO_MEM;
+	if (page_insert(curenv->env_pml4e, p, (void *)(USTACKTOP - PGSIZE), PTE_P | PTE_U | PTE_W) < 0)
+		return -E_NO_MEM;
+	page_remove(curenv->env_pml4e, (void *)tmp);
+
+	env_run(curenv);
+	return 0;
+}
 
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -836,7 +876,8 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 	case SYS_env_print_trapframe:
 		print_trapframe(&curenv->env_tf);
 		return 0;
-
+	case SYS_exec:
+		return sys_exec((uint64_t)a1, (uint64_t)a2, (void *)a3, (uint64_t)a4);
 	default:
 		return -E_NO_SYS;
 	}

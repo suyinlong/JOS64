@@ -218,3 +218,7 @@ sys_sipc_recv(envid_t envid)
 {
 	return syscall(SYS_sipc_recv, 0, envid, 0, 0, 0, 0);
 }
+
+int sys_exec(uint64_t rip, uint64_t rsp, void *ph, uint64_t phnum) {
+	return syscall(SYS_exec, 1, rip, rsp, (uint64_t)ph, phnum, 0);
+}

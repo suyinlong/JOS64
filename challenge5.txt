@@ -116,3 +116,17 @@ TEST (user/linktest.c)
   7. Try to delete 'base' (should fail, f_nlink=1)
   8. Delete 'mylink2'
   9. Delete 'base'
+
+---------------------------------------------------------------------
+Challenge 5 of Lab 5
+
+exec
+
+We implement Unix-style exec. The code are in lib/exec.c and kern/syscall.c.
+The idea is similar to spawn, but we first load the segments to a temp region.
+Then in system call (kernel mode), we move the segments back and set the rip
+and rsp of the trapframe.
+
+Use our test program (user/exectest.c) to see the result. Type 'exectest' in
+the kernel monitor. You should see the program exec the hello program with
+same environment id.
