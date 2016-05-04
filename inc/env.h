@@ -87,6 +87,8 @@ struct Env {
     envid_t env_sipc_from;      // Envid of the expected source
     uint64_t env_sipc_value;    // Data value sent to us from SIPC
 
+    uint8_t env_ipc_sending;
+
     // Challenge * of Lab 4 (no send while IPC)
     int env_ipc_list_entry;
     envid_t env_ipc_list[N_IPC_LIST];

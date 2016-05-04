@@ -403,9 +403,12 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	lock_g(GLOCK_IPC);
 	if (env->env_ipc_list_entry < N_IPC_LIST) {
 		env->env_ipc_list[env->env_ipc_list_entry++] = curenv->env_id;
+		//cprintf("%x enqueue %x <send_1>\n", curenv->env_id, env->env_id);
 		// only wake the receiver when recving = 1 (we use 2 as 'recver already wake one sender, please dont interrupt')
-		if (env->env_ipc_recving == 1 && env->env_status == ENV_NOT_RUNNABLE)
+		if (env->env_ipc_recving == 1 && env->env_status == ENV_NOT_RUNNABLE) {
+			//cprintf("%x wake up %x <send_1>\n", curenv->env_id, env->env_id);
 			env->env_status = ENV_RUNNABLE;
+		}
 	} else {
 		// queue is full...
 		// In real OS, should be a real queue with very large capacity
@@ -415,6 +418,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	}
 	unlock_g(GLOCK_IPC);
 	// now go to sleep, and wait for the wake up from receiver
+	//cprintf("%x sleep <send_1>\n", curenv->env_id);
+	curenv->env_ipc_sending = 1;
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	curenv->env_tf.tf_regs.reg_rax = 0;
 	sched_yield();
@@ -430,7 +435,7 @@ sys_ipc_try_send_2(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	struct PageInfo *pp;
 	int ret;
 	pte_t *pte;
-
+	//cprintf("%x wakeup <send_2>\n", curenv->env_id);
 	if ((ret = envid2env(envid, &env, 0)) < 0)
 		return ret;
 
@@ -448,7 +453,8 @@ sys_ipc_try_send_2(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	env->env_ipc_perm = perm;
 	env->env_ipc_value = value;
 	env->env_status = ENV_RUNNABLE;
-
+	curenv->env_ipc_sending = 0;
+	//cprintf("%x wakeup %x <send_2>\n", curenv->env_id, env->env_id);
 	if ((uintptr_t)srcva >= UTOP || (uintptr_t)env->env_ipc_dstva >= UTOP)
 		return 0;
 
@@ -505,16 +511,19 @@ sys_ipc_recv(void *dstva)
 			for (i = 0; i < N_IPC_LIST - 1; i++)
 				curenv->env_ipc_list[i] = curenv->env_ipc_list[i+1];
 			curenv->env_ipc_list_entry--;
+			//cprintf("%x dequeue %x <recv>\n", curenv->env_id, envid);
 			ret = envid2env(envid, &env, 0);
 		}
 		if (env) {
 			// found a valid sender, set flag and wake it up
+			//cprintf("%x dequeue %x & wake it up <recv>\n", curenv->env_id, env->env_id);
 			curenv->env_ipc_recving = 2;
 			env->env_status = ENV_RUNNABLE;
 		}
 	}
 	unlock_g(GLOCK_IPC);
 	// now sleep and wait for the sender
+	//cprintf("%x sleep <recv>\n", curenv->env_id);
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	curenv->env_tf.tf_regs.reg_rax = 0;
 	sched_yield();

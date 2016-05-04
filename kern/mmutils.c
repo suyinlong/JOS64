@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-05-03 22:25:07
+* @Last Modified time: 2016-05-04 12:08:16
 */
 
 #include <inc/stdio.h>
@@ -311,15 +311,16 @@ int mm_einfo(int pflag) {
             cprintf("PID: %08x ", envs[i].env_parent_id);
             cprintf("TYPE: %s ", envs[i].env_type == ENV_TYPE_USER ? "USER" :
                 (envs[i].env_type == ENV_TYPE_FS ? "-FS-" : "-NS-"));
-            cprintf("RUNS: %d ", envs[i].env_runs);
+            cprintf("RUNS: %4d ", envs[i].env_runs);
             cprintf("CPU: %d ", envs[i].env_cpunum);
-            cprintf("PRIORITY: %d ", envs[i].priority);
+            cprintf("PRIORITY: %2d ", envs[i].priority);
             cprintf("STATUS: %s ",
                 envs[i].env_status == ENV_DYING ? "DYING" :
                     (envs[i].env_status == ENV_RUNNABLE ? "RUNNABLE" :
                         (envs[i].env_status == ENV_RUNNING ? "RUNNING" :
                             (envs[i].env_status == ENV_NOT_RUNNABLE ? "NOT_RUNNABLE" : "ERROR"))));
-            cprintf("%s ", envs[i].env_ipc_recving ? "IPC_BLOCKING" : "");
+            cprintf("%s", envs[i].env_ipc_recving ? "IPC_RECVING " : "");
+            cprintf("%s", envs[i].env_ipc_sending ? "IPC_SENDING " : "");
             cprintf("\n");
         }
     }

@@ -26,7 +26,6 @@ void*	diskaddr(uint64_t blockno);
 bool	va_is_mapped(void *va);
 bool	va_is_dirty(void *va);
 bool    va_is_accessed(void *va);
-void    va_clr_accessed(void *va);
 void	flush_block(void *addr);
 void	bc_init(void);
 
@@ -49,4 +48,7 @@ int	alloc_block(void);
 
 /* test.c */
 void	fs_test(void);
+
+/* dentry.c */
+void init_dentry();
 

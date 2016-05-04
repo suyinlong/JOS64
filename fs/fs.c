@@ -119,6 +119,9 @@ fs_init(void)
 	bitmap = diskaddr(2);
 	check_bitmap();
 
+
+	//init_dentry();
+
 	// Set the IDE to interrupt-driven
 	ide_set_wait_int();
 }
@@ -519,6 +522,7 @@ void fs_recycle(void) {
 	uint32_t start_blockno = 2 + (super->s_nblocks / BLKBITSIZE) + (super->s_nblocks % BLKBITSIZE > 0);
 	uint32_t i;
 	void *va;
+
 	// If the block is presented and the block is not accessed -> Flush the block, then free it
 	// And mark all the block not accessed (PTE_A = 0)
 	for (i = start_blockno; i < super->s_nblocks; i++) {
@@ -527,7 +531,8 @@ void fs_recycle(void) {
 			flush_block(va);
 			sys_page_unmap(0, va);
 		}
-		if (va_is_mapped(va))
-			va_clr_accessed(va);
+		if (va_is_mapped(va)) {
+			sys_page_map(0, va, 0, va, PTE_W | PTE_U | PTE_P);
+		}
 	}
 }

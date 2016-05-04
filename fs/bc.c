@@ -32,11 +32,6 @@ bool va_is_accessed(void *va) {
 	return (uvpt[PGNUM(va)] & PTE_A) != 0;
 }
 
-// Clear PTE_A
-void va_clr_accessed(void *va) {
-	uvpt[PGNUM(va)] = uvpt[PGNUM(va)] & ~PTE_A;
-	return;
-}
 // Fault any disk block that is read in to memory by
 // loading it from disk.
 // Hint: Use ide_read and BLKSECTS.

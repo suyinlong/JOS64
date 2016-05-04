@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-14 18:11:20
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-30 11:25:24
+* @Last Modified time: 2016-05-04 12:28:25
 */
 
 // Matrix multiplication
@@ -115,7 +115,11 @@ void umain(int argc, char **argv) {
         // parent save the envid
         ids[c] = who;
     }
-    // feed the input stream
+
+    // cannot feed all then retrieve the outputs
+    // coz that way may cause dead-lock
+
+    /*// feed the input stream
     for (i = 0; i < 3; i++)
         for (j = 0; j < 3; j++)
             ipc_send(ENVID(j + 1, 0), IN[i][j], 0, 0);
@@ -130,6 +134,25 @@ void umain(int argc, char **argv) {
         else if (who == ENVID(3, 3))
             OUT[z++][2] = t;
     }
+    */
+
+    for (i = 0; i < 3; i++) {
+        // feed the input
+        for (j = 0; j < 3; j++)
+            ipc_send(ENVID(j + 1, 0), IN[i][j], 0, 0);
+        // read the output
+        // Note: output can come as different orders
+        for (j = 0; j < 3; j++) {
+            t = ipc_recv(&who, 0, 0);
+            if (who == ENVID(3, 1))
+                OUT[x++][0] = t;
+            else if (who == ENVID(3, 2))
+                OUT[y++][1] = t;
+            else if (who == ENVID(3, 3))
+                OUT[z++][2] = t;
+        }
+    }
+
     // print the answer
     for (i = 0; i < 3; i++) {
         for (j = 0; j < 3; j++)

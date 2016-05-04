@@ -36,10 +36,34 @@ struct File {
 	uint32_t f_direct[NDIRECT];	// direct blocks
 	uint32_t f_indirect;		// indirect block
 
+	// Challenge 4 of Lab 5
+	// inode & hardlink
+	//uint32_t f_nlink;
+
 	// Pad out to 256 bytes; must do arithmetic in case we're compiling
 	// fsformat on a 64-bit machine.
 	uint8_t f_pad[256 - MAXNAMELEN - 8 - 4*NDIRECT - 4];
 } __attribute__((packed));	// required only on some 64-bit machines
+
+
+// Challenge 4 of Lab 5
+// Dentry objects (only in memory)
+
+// Maximum number of Dentry objects
+#define MAXDENTRY	16
+
+struct Dentry {
+	char d_name[MAXNAMELEN];	// dentry name
+	uint32_t d_inode;			// inode number
+	struct Dentry *d_child;		// point to the first child
+	struct Dentry *d_prev;		// point to prev sibling (same dir)
+	struct Dentry *d_next;		// point to next sibling (same dir)
+	struct Dentry *d_parent;	// point to parent
+
+	struct Dentry *d_free_list; // point to next free list (only use if dentry is free)
+	// pad out to 256 bytes
+	uint8_t d_pad[256 - MAXNAMELEN - 4 - 8 * 5];
+} __attribute__((packed));
 
 // An inode block contains exactly BLKFILES 'struct File's
 #define BLKFILES	(BLKSIZE / sizeof(struct File))

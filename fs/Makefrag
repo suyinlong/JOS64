@@ -5,7 +5,7 @@ FSOFILES := 		$(OBJDIR)/fs/ide.o \
 			$(OBJDIR)/fs/bc.o \
 			$(OBJDIR)/fs/fs.o \
 			$(OBJDIR)/fs/serv.o \
-			$(OBJDIR)/fs/test.o \
+			$(OBJDIR)/fs/test.o
 
 ROOTAPPS := $(OBJDIR)/user/init
 

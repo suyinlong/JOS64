@@ -18,8 +18,9 @@ void sched_halt(void);
 //
 extern void *schedqueue;
 uint64_t *sched_act_queue = NULL, *sched_exp_queue = NULL;
-// FS recycle count, if it reaches SCH_CYCLE_FS, recycle
-uint64_t sched_cycle;
+// FS recycle flag
+bool sched_recycle_flag; // recycle one time when no env can run
+uint64_t sched_cycle;	 // recycle when the cycle number reaches SCH_CYCLE_FS
 
 extern envid_t fs_envid;
 
@@ -28,8 +29,10 @@ extern envid_t fs_envid;
 void sched_fs_recycle(void) {
 	int r;
 	struct Env *e;
+
 	sched_cycle = 0;
-	// error return
+	sched_recycle_flag = 1;
+	// cannot find fs env, error return
 	if ((r = envid2env(fs_envid, &e, 0)) < 0)
 		return;
 	// if FS is not waiting for request, return
@@ -41,7 +44,7 @@ void sched_fs_recycle(void) {
 	e->env_ipc_perm = 0;
 	e->env_ipc_value = FSREQ_RECYCLE;
 	e->env_status = ENV_RUNNABLE;
-
+	// run FS
 	env_run(e);
 }
 
@@ -56,6 +59,7 @@ void sched_init(void) {
 		*(sched_act_queue + i) = 0;
 		*(sched_exp_queue + i) = 0;
 	}
+	sched_recycle_flag = 1;
 	sched_cycle = 0;
 }
 
@@ -164,11 +168,9 @@ sched_yield(void)
 	// O(1) scheduler
 
 	struct Env *target;
-	int i, max = NSCH, swap = 0;
+	int i, max = NSCH - 1, swap = 0;
 
-	// if cycle number reaches SCH_CYCLE_FS
-	// call recycle
-	sched_cycle ++;
+	// cycle number reaches SCH_CYCLE_FS, run recycle
 	if (sched_cycle >= SCH_CYCLE_FS)
 		sched_fs_recycle();
 
@@ -178,7 +180,7 @@ sched_yield(void)
 	if (target && target->env_status == ENV_RUNNING)
 		max = target->priority;
 
-	while (swap == 0) {
+	while (swap <= 1) {
 		i = 0;
 		while (i <= max) {
 			// try to find a runnable environment
@@ -191,6 +193,8 @@ sched_yield(void)
 			sched_enqueue(i, target);
 			// if the environment is runnable, run it
 			if (target->env_status == ENV_RUNNABLE) {
+				if (target->env_id != fs_envid)
+					sched_recycle_flag = 0;
 				env_run(target);
 				return;
 			}
@@ -203,6 +207,8 @@ sched_yield(void)
 
 	target = thiscpu->cpu_env;
 	if (target && target->env_status == ENV_RUNNING) {
+		if (target->env_id != fs_envid)
+			sched_recycle_flag = 0;
 		env_run(target);
 	}
 
@@ -227,6 +233,10 @@ sched_halt(void)
 			break;
 	}
 	if (i == NENV) {
+		// no env can run, recycle once
+		if (sched_recycle_flag == 0)
+			sched_fs_recycle();
+
 		cprintf("No runnable environments in the system!\n");
 		while (1)
 			monitor(NULL);
