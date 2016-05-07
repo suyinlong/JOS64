@@ -331,7 +331,7 @@ umain(int argc, char **argv)
 	if (input_envid < 0)
 		panic("error forking");
 	else if (input_envid == 0) {
-		input(ns_envid);
+//		input(ns_envid);
 		return;
 	}
 
@@ -341,7 +341,7 @@ umain(int argc, char **argv)
 	if (output_envid < 0)
 		panic("error forking");
 	else if (output_envid == 0) {
-		output(ns_envid);
+//		output(ns_envid);
 		return;
 	}
 

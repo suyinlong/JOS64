@@ -1,14 +1,3 @@
-+ cc[USER] net/testoutput.c
-+ cc[USER] net/timer.c
-+ cc[USER] net/input.c
-+ cc[USER] net/output.c
-+ ld obj/net/testoutput
-+ cc[USER] net/testinput.c
-+ ld obj/net/testinput
-+ cc[USER] net/serv.c
-+ ld obj/net/ns
-+ ld obj/kern/kernel
-+ mk obj/kern/kernel.img
 6828 decimal is 15254 octal!
 
 e820 MEMORY MAP
@@ -40,9 +29,9 @@ Device 1 presence: 1
 block cache is good
 superblock is good
 bitmap is good
-Sending ARP announcement...
-[00001001] user panic in testinput at lib/ipc.c:73: error on ipc send procedure
+Transmitting packet 0
+[00001001] user panic in testoutput at lib/ipc.c:73: error on ipc send procedure
 Welcome to the JOS kernel monitor!
 Type 'help' for a list of commands.
 [0;33mReturn to kernel monitor due to: Breakpoint[0m
-qemu: terminating on signal 15 from pid 18959
+qemu: terminating on signal 15 from pid 5630

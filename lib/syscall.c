@@ -126,13 +126,13 @@ sys_time_msec(void)
 int
 sys_e1000_transmit(void *addr, size_t len)
 {
-	return syscall(SYS_e1000_transmit, (uint64_t)addr, len, 0, 0, 0, 0);
+	return syscall(SYS_e1000_transmit, 0, (uint64_t)addr, len, 0, 0, 0);
 }
 
 int
 sys_e1000_receive(void *addr, int *len)
 {
-	return syscall(SYS_e1000_receive, (uint64_t)addr, (uint64_t)len, 0, 0, 0, 0);
+	return syscall(SYS_e1000_receive, 0, (uint64_t)addr, (uint64_t)len, 0, 0, 0);
 }
 
 int
