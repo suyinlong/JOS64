@@ -32,8 +32,11 @@ umain(int argc, char **argv)
 				       PGSIZE - sizeof(pkt->jp_len),
 				       "Packet %02d", i);
 		cprintf("Transmitting packet %d\n", i);
-		ipc_send(output_envid, NSREQ_OUTPUT, pkt, PTE_P|PTE_W|PTE_U);
+//		ipc_send(output_envid, NSREQ_OUTPUT, pkt, PTE_P|PTE_W|PTE_U);
+r=		ipc_send(output_envid, NSREQ_OUTPUT, pkt, PTE_P|PTE_W|PTE_U);
+cprintf("here! %d\n",r);
 		sys_page_unmap(0, pkt);
+cprintf("here2!\n");
 	}
 
 	// Spin for a while, just in case IPC's or packets need to be flushed

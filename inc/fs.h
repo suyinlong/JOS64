@@ -36,9 +36,14 @@ struct File {
 	uint32_t f_direct[NDIRECT];	// direct blocks
 	uint32_t f_indirect;		// indirect block
 
+	// Challenge 4 of Lab 5
+	// inode & hardlink
+	uint32_t f_nlink;
+	uint32_t f_inode;
+
 	// Pad out to 256 bytes; must do arithmetic in case we're compiling
 	// fsformat on a 64-bit machine.
-	uint8_t f_pad[256 - MAXNAMELEN - 8 - 4*NDIRECT - 4];
+	uint8_t f_pad[256 - MAXNAMELEN - 8 - 4*NDIRECT - 4 - 4 - 4];
 } __attribute__((packed));	// required only on some 64-bit machines
 
 // An inode block contains exactly BLKFILES 'struct File's
@@ -47,6 +52,7 @@ struct File {
 // File types
 #define FTYPE_REG	0	// Regular file
 #define FTYPE_DIR	1	// Directory
+#define FTYPE_LNK	2	// Hard link
 
 
 // File system super-block (both in-memory and on-disk)
@@ -70,7 +76,9 @@ enum {
 	FSREQ_STAT,
 	FSREQ_FLUSH,
 	FSREQ_REMOVE,
-	FSREQ_SYNC
+	FSREQ_SYNC,
+	FSREQ_RECYCLE,
+	FSREQ_LINK
 };
 
 union Fsipc {
@@ -108,7 +116,10 @@ union Fsipc {
 	struct Fsreq_remove {
 		char req_path[MAXPATHLEN];
 	} remove;
-
+	struct Fsreq_link {
+		char req_path1[MAXPATHLEN];
+		char req_path2[MAXPATHLEN];
+	} link;
 	// Ensure Fsipc is one page
 	char _pad[PGSIZE];
 };

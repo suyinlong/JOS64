@@ -24,15 +24,15 @@
 
 // constants defined by Intel E1000 manual
 // borrowed and simplified from given header 'e1000_hw.h', only keep vital ones
-#define E1000_STATUS		0x00008		// Device Status - RO
-#define E1000_TCTL		0x00400		// TX Control - RW
-#define E1000_TIPG		0x00410		// TX Inter-packet Gap - RW
+#define E1000_STATUS		0x00008 / 4	// Device Status - RO
+#define E1000_TCTL		0x00400 / 4	// TX Control - RW
+#define E1000_TIPG		0x00410 / 4	// TX Inter-packet Gap - RW
 
-#define E1000_TDBAL		0x03800		// TX Descriptor Base Address Low - RW
-#define E1000_TDBAH		0x03804		// TX Descriptor Base Address High - RW
-#define E1000_TDLEN		0x03808		// TX Descriptor Length - RW
-#define E1000_TDH		0x03810		// TX Descriptor Head - RW
-#define E1000_TDT		0x03818		// TX Descriptor Tail - RW
+#define E1000_TDBAL		0x03800 / 4	// TX Descriptor Base Address Low - RW
+#define E1000_TDBAH		0x03804 / 4	// TX Descriptor Base Address High - RW
+#define E1000_TDLEN		0x03808 / 4	// TX Descriptor Length - RW
+#define E1000_TDH		0x03810 / 4	// TX Descriptor Head - RW
+#define E1000_TDT		0x03818 / 4		// TX Descriptor Tail - RW
 
 // transmit control bits
 #define E1000_TCTL_EN		0x00000002	// enable tx
@@ -41,8 +41,8 @@
 #define E1000_TCTL_COLD		0x003ff000	// collision distance
 
 // transmit descriptor bits
-#define E1000_TXD_CMD_EOP	0x01000000	// end of packet
-#define E1000_TXD_CMD_RS	0x08000000	// report status
+#define E1000_TXD_CMD_EOP	0x00000008	// end of packet
+#define E1000_TXD_CMD_RS	0x00000001	// report status
 #define E1000_TXD_STAT_DD	0x00000001	// descriptor done
 
 // define error code for return values

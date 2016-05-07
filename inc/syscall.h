@@ -16,6 +16,7 @@ enum {
 	SYS_env_set_pgfault_upcall,
 	SYS_yield,
 	SYS_ipc_try_send,
+	SYS_ipc_try_send_2,
 	SYS_ipc_recv,
 	SYS_time_msec,
 	SYS_e1000_transmit,
@@ -26,7 +27,10 @@ enum {
 	SYS_b_free,
 	SYS_env_set_exception_upcall,
 	SYS_sipc_try_send,
+	SYS_sipc_try_send_2,
 	SYS_sipc_recv,
+	SYS_env_print_trapframe,
+	SYS_exec,
 	NSYSCALLS
 };
 

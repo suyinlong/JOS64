@@ -139,11 +139,11 @@ outl(int port, uint32_t data)
 	__asm __volatile("outl %0,%w1" : : "a" (data), "d" (port));
 }
 
-static __inline void 
+static __inline void
 invlpg(void *addr)
-{ 
+{
 	__asm __volatile("invlpg (%0)" : : "r" (addr) : "memory");
-}  
+}
 
 static __inline void
 lidt(void *p)
@@ -263,7 +263,7 @@ static __inline void
 cpuid(uint32_t info, uint32_t *eaxp, uint32_t *ebxp, uint32_t *ecxp, uint32_t *edxp)
 {
 	uint32_t eax, ebx, ecx, edx;
-	asm volatile("cpuid" 
+	asm volatile("cpuid"
 		     : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx)
 		     : "a" (info));
 	if (eaxp)
@@ -292,5 +292,24 @@ read_tsc(void)
         __asm __volatile("rdtsc" : "=A" (tsc));
         return tsc;
 }
+
+#define rdmsr(msr,val1,val2) \
+	__asm __volatile("rdmsr" \
+		: "=a"(val1), "=d"(val2) \
+		: "c" (msr))
+
+#define wrmsr(msr,val1,val2) \
+	__asm __volatile("wrmsr" \
+		: \
+		: "c"(msr), "a"(val1), "d"(val2))
+
+#define MSR_IA32_SYSENTER_CS  (0x174)
+#define MSR_IA32_SYSENTER_ESP (0x175)
+#define MSR_IA32_SYSENTER_EIP (0x176)
+#define MSR_AMD_EFER (0xC0000080)
+#define MSR_AMD_STAR (0xC0000081)
+#define MSR_AMD_LSTAR (0xC0000082)
+#define MSR_AMD_CSTAR (0xC0000083)
+#define MSR_SFMASK (0xC0000084)
 
 #endif /* !JOS_INC_X86_H */

@@ -23,12 +23,16 @@ int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
 	// LAB 4: Your code here.
+	// Modify to use queue so that no whiles are used in ipc_send/recv
+	// Instead use sleep and wake up
+	uint64_t r15;
 	int r;
 	void *page = pg;
 
 	if (page == NULL)
 		page = (void *)KERNBASE;
 
+ipc_recv_dequeue:
 	if ((r = sys_ipc_recv(page)) < 0) {
 		if (from_env_store != NULL)
 			*from_env_store = 0;
@@ -37,6 +41,10 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 		return r;
 	}
 
+	if (thisenv->env_ipc_recving == 1)
+		// haven't dequeue, so goes back to dequeue
+		goto ipc_recv_dequeue;
+
 	if (from_env_store != NULL)
 		*from_env_store = thisenv->env_ipc_from;
 
@@ -44,8 +52,6 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 		*perm_store = thisenv->env_ipc_perm;
 
 	return thisenv->env_ipc_value;
-	//panic("ipc_recv not implemented");
-	//return 0;
 }
 
 // Send 'val' (and 'pg' with 'perm', if 'pg' is nonnull) to 'toenv'.
@@ -56,22 +62,34 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 //   Use sys_yield() to be CPU-friendly.
 //   If 'pg' is null, pass sys_ipc_recv a value that it will understand
 //   as meaning "no page".  (Zero is not the right value.)
-void
+int32_t
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
 	// LAB 4: Your code here.
+	// Modify to use queue so that no whiles are used in ipc_send/recv
+	// Instead use sleep and wake up
 	int r;
 	void *page = pg;
 
 	if (page == NULL)
 		page = (void *)KERNBASE;
 
-	while ((r = sys_ipc_try_send(to_env, val, page, perm)) == -E_IPC_NOT_RECV)
-		sys_yield();
+	// old code: while style
+	// while ((r = sys_ipc_try_send(to_env, val, page, perm)) == -E_IPC_NOT_RECV)
+	// 	sys_yield();
+
+	// new code:
+	// two-phase send procedure
+
+	// first phase, enqueue and try to wake up the receiver if possible
+	r = sys_ipc_try_send(to_env, val, page, perm);
 
 	if (r != 0)
-		panic("error on ipc send procedure");
-	//panic("ipc_send not implemented");
+		return r;
+
+	// second phase, write the data to the receiver
+	r = sys_ipc_try_send_2(to_env, val, page, perm);
+	return r;
 }
 
 // Find the first environment of the given type.  We'll use this to

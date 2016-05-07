@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-03-25 18:54:33
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-21 14:28:13
+* @Last Modified time: 2016-05-04 17:40:34
 */
 
 #include <inc/stdio.h>
@@ -309,15 +309,19 @@ int mm_einfo(int pflag) {
             cprintf("  # ");
             cprintf("ID: %08x ", envs[i].env_id);
             cprintf("PID: %08x ", envs[i].env_parent_id);
-            cprintf("TYPE: %s ", envs[i].env_type == ENV_TYPE_USER ? "USER" : "-FS/NS-");
-            cprintf("RUNS: %d ", envs[i].env_runs);
+            cprintf("TYPE: %s ", envs[i].env_type == ENV_TYPE_USER ? "USER" :
+                (envs[i].env_type == ENV_TYPE_FS ? "-FS-" : "-NS-"));
+            cprintf("RUNS: %4d ", envs[i].env_runs);
             cprintf("CPU: %d ", envs[i].env_cpunum);
-            cprintf("PRIORITY: %d ", envs[i].priority);
-            cprintf("STATUS: %s\n",
+            cprintf("PRIORITY: %2d ", envs[i].priority);
+            cprintf("STATUS: %s ",
                 envs[i].env_status == ENV_DYING ? "DYING" :
                     (envs[i].env_status == ENV_RUNNABLE ? "RUNNABLE" :
                         (envs[i].env_status == ENV_RUNNING ? "RUNNING" :
                             (envs[i].env_status == ENV_NOT_RUNNABLE ? "NOT_RUNNABLE" : "ERROR"))));
+            cprintf("%s", envs[i].env_ipc_recving ? "IPC_RECVING " : "");
+            cprintf("%s", envs[i].env_ipc_sending ? "IPC_SENDING " : "");
+            cprintf("\n");
         }
     }
 
@@ -586,6 +590,30 @@ int mon_mm_matrixtest(int argc, char **argv, struct Trapframe *tf) {
 
 int mon_mm_powerseriestest(int argc, char **argv, struct Trapframe *tf) {
     ENV_CREATE(user_powerseries, ENV_TYPE_USER, PRI_DEF);
+    sched_yield();
+    return 0;
+}
+
+int mon_mm_ipctest(int argc, char **argv, struct Trapframe *tf) {
+    ENV_CREATE(user_ipctest, ENV_TYPE_USER, PRI_DEF);
+    sched_yield();
+    return 0;
+}
+
+int mon_mm_idetest(int argc, char **argv, struct Trapframe *tf) {
+    ENV_CREATE(user_idetest, ENV_TYPE_USER, PRI_DEF);
+    sched_yield();
+    return 0;
+}
+
+int mon_mm_linktest(int argc, char **argv, struct Trapframe *tf) {
+    ENV_CREATE(user_linktest, ENV_TYPE_USER, PRI_DEF);
+    sched_yield();
+    return 0;
+}
+
+int mon_mm_exectest(int argc, char **argv, struct Trapframe *tf) {
+    ENV_CREATE(user_exectest, ENV_TYPE_USER, PRI_DEF);
     sched_yield();
     return 0;
 }

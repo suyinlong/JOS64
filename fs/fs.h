@@ -19,11 +19,13 @@ bool	ide_probe_disk1(void);
 void	ide_set_disk(int diskno);
 int	ide_read(uint32_t secno, void *dst, size_t nsecs);
 int	ide_write(uint32_t secno, const void *src, size_t nsecs);
+void ide_set_wait_int();
 
 /* bc.c */
 void*	diskaddr(uint64_t blockno);
 bool	va_is_mapped(void *va);
 bool	va_is_dirty(void *va);
+bool	va_is_accessed(void *va);
 void	flush_block(void *addr);
 void	bc_init(void);
 
@@ -38,6 +40,8 @@ int	file_set_size(struct File *f, off_t newsize);
 void	file_flush(struct File *f);
 int	file_remove(const char *path);
 void	fs_sync(void);
+void	fs_recycle(void);
+int	fs_link(const char *p1, const char *p2);
 
 /* int	map_block(uint32_t); */
 bool	block_is_free(uint32_t blockno);
@@ -45,4 +49,5 @@ int	alloc_block(void);
 
 /* test.c */
 void	fs_test(void);
+
 

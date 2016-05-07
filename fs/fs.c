@@ -118,6 +118,9 @@ fs_init(void)
 	// Set "bitmap" to the beginning of the first bitmap block.
 	bitmap = diskaddr(2);
 	check_bitmap();
+
+	// Set the IDE to interrupt-driven
+	ide_set_wait_int();
 }
 
 // Find the disk block number slot for the 'filebno'th block in file 'f'.
@@ -127,7 +130,7 @@ fs_init(void)
 // When 'alloc' is set, this function will allocate an indirect block
 // if necessary.
 //
-//  Note, for the read-only file system (lab 5 without the challenge), 
+//  Note, for the read-only file system (lab 5 without the challenge),
 //        alloc will always be false.
 //
 // Returns:
@@ -343,10 +346,19 @@ file_create(const char *path, struct File **pf)
 
 // Open "path".  On success set *pf to point at the file and return 0.
 // On error return < 0.
+//
+// ------------------------------------
+// Challenge 4 of Lab 5
+// Here we modify file_open: If pf is a link, then return the linked file
+//
 int
 file_open(const char *path, struct File **pf)
 {
-	return walk_path(path, 0, pf, 0);
+	int r;
+	r = walk_path(path, 0, pf, 0);
+	if ((*pf)->f_type == FTYPE_LNK)
+		*pf = (struct File *)(uint64_t)((*pf)->f_inode);
+	return r;
 }
 
 // Read count bytes from f into buf, starting from seek position
@@ -482,6 +494,13 @@ file_flush(struct File *f)
 }
 
 // Remove a file by truncating it and then zeroing the name.
+//
+// ------------------------------------
+// Challenge 4 of Lab 5
+// Here we modify file_remove:
+// If f has link(s), you can not remove it.
+// If f is a link, decrease the inode's nlink count
+//
 int
 file_remove(const char *path)
 {
@@ -490,6 +509,14 @@ file_remove(const char *path)
 
 	if ((r = walk_path(path, 0, &f, 0)) < 0)
 		return r;
+
+	if (f->f_nlink > 0)
+		return -E_LINK_EXISTS;
+
+	if (f->f_type == FTYPE_LNK) {
+		struct File *pf = (struct File *)(uint64_t)(f->f_inode);
+		pf->f_nlink--;
+	}
 
 	file_truncate_blocks(f, 0);
 	f->f_name[0] = '\0';
@@ -508,3 +535,61 @@ fs_sync(void)
 		flush_block(diskaddr(i));
 }
 
+
+// Challenge 2 of Lab 5
+// Reclaim/Recycle the block
+void fs_recycle(void) {
+	// starting no
+	uint32_t start_blockno = 2 + (super->s_nblocks / BLKBITSIZE) + (super->s_nblocks % BLKBITSIZE > 0);
+	uint32_t i;
+	void *va;
+
+	// If the block is presented and the block is not accessed -> Flush the block, then free it
+	// And mark all the block not accessed (PTE_A = 0)
+	for (i = start_blockno; i < super->s_nblocks; i++) {
+		va = diskaddr(i);
+		if (va_is_mapped(va) && !va_is_accessed(va)) {
+			flush_block(va);
+			sys_page_unmap(0, va);
+		}
+		if (va_is_mapped(va)) {
+			sys_page_map(0, va, 0, va, PTE_W | PTE_U | PTE_P);
+		}
+	}
+}
+void show_finfo(struct File *f) {
+	cprintf("  File node: %s(%d) #%d L%d\n", f->f_name, f->f_type, f->f_inode, f->f_nlink);
+	int i;
+	for (i = 0; i <= NDIRECT; i++)
+		cprintf(" %x", f->f_direct[i]);
+	cprintf("\n");
+}
+
+int fs_link(const char *p1, const char *p2) {
+    int r;
+    struct File *pf, *pl;
+    uint32_t inode = 0, inode_dir = 0;
+
+    if ((r = walk_path(p1, NULL, &pf, NULL)) < 0)
+    	return r;
+
+    if (pf->f_type == FTYPE_LNK) {
+    	pf = (struct File *)(uint64_t)(pf->f_inode);
+    	inode = (uint32_t)(uint64_t)pf;
+    }
+    else if (pf->f_type == FTYPE_REG)
+    	inode = (uint32_t)(uint64_t)pf; //(uint32_t)(((uint64_t)pf - DISKMAP) / BLKSIZE);
+    else
+    	panic("hard link not allowed for directory\n");
+
+    if ((r = file_create(p2, &pl)) < 0)
+    	return r;
+    pl->f_type = FTYPE_LNK;
+    pl->f_size = 0;
+    pl->f_inode = inode;
+
+    pf->f_nlink ++;
+
+    return 0;
+
+}

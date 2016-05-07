@@ -31,6 +31,7 @@ extern physaddr_t boot_cr3;
 #define ENVX(envid)		((envid) & (NENV - 1))
 
 #define N_TRAP_UPCALL	20
+#define N_IPC_LIST      10
 
 // Values of env_status in struct Env
 enum {
@@ -38,7 +39,8 @@ enum {
 	ENV_DYING,
 	ENV_RUNNABLE,
 	ENV_RUNNING,
-	ENV_NOT_RUNNABLE
+	ENV_NOT_RUNNABLE,
+	ENV_FS_WAITING
 };
 
 // Special environment types
@@ -66,7 +68,7 @@ struct Env {
 	void *env_pgfault_upcall;	// Page fault upcall entry point
 
 	// Lab 4 IPC
-	bool env_ipc_recving;		// Env is blocked receiving
+	uint8_t env_ipc_recving;		// Env is blocked receiving
 	void *env_ipc_dstva;		// VA at which to map received page
 	uint32_t env_ipc_value;		// Data value sent to us
 	envid_t env_ipc_from;		// envid of the sender
@@ -80,10 +82,17 @@ struct Env {
     // Challegne 5 of Lab 4 (exception handling)
     void *env_exception_upcall[N_TRAP_UPCALL];
 
-    // Challenge * of Lab 4 (Source-specified IPC)
-    bool env_sipc_recving;      // Env is blocked receiving
+    // Challenge 10 of Lab 4 (Source-specified IPC)
+    uint8_t env_sipc_recving;      // Env is blocked receiving
     envid_t env_sipc_from;      // Envid of the expected source
     uint64_t env_sipc_value;    // Data value sent to us from SIPC
+
+    uint8_t env_ipc_sending;
+
+    // Challenge * of Lab 4 (no send while IPC)
+    int env_ipc_list_entry;
+    envid_t env_ipc_list[N_IPC_LIST];
+
 };
 
 struct EnvSnapshot {

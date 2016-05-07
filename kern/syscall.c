@@ -5,6 +5,7 @@
 #include <inc/string.h>
 #include <inc/assert.h>
 #include <inc/env.h>
+#include <inc/elf.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -15,6 +16,9 @@
 #include <kern/time.h>
 #include <kern/e1000.h>
 #include <kern/pmaputils.h>
+#include <kern/spinlock.h>
+
+#define EXECTEMP   0xe0000000
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -56,7 +60,7 @@ static int
 sys_env_destroy(envid_t envid)
 {
 	int r;
-	struct Env *e;
+	struct Env *e, *qe;
 
 	if ((r = envid2env(envid, &e, 1)) < 0)
 		return r;
@@ -74,9 +78,6 @@ sys_env_destroy(envid_t envid)
 static void
 sys_yield(void)
 {
-	// Challenge 2 of Lab 4 (fixed-priority scheduler)
-	// add this to indicate the curenv wants to yield
-	curenv->env_status = ENV_RUNNABLE;
 	sched_yield();
 }
 
@@ -136,7 +137,7 @@ sys_env_set_status(envid_t envid, int status)
 	struct Env *env;
 	int ret;
 
-	if ((status != ENV_RUNNABLE) && (status != ENV_NOT_RUNNABLE))
+	if ((status != ENV_RUNNABLE) && (status != ENV_NOT_RUNNABLE) && (status != ENV_FS_WAITING))
 		return -E_INVAL;
 
 	if ((ret = envid2env(envid, &env, 1)) < 0)
@@ -392,15 +393,71 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if ((ret = envid2env(envid, &env, 0)) < 0)
 		return ret;
 
-	if (env->env_ipc_recving == 0)
-		return -E_IPC_NOT_RECV;
+	// Challenge 8 of Lab 4
+	// enqueue to receiver, then check if the receiver is recving
+	// if the receiver is recving, then wake it up
 
+	// Old Code here:
+	// if (env->env_ipc_recving == 0)
+	//  	return -E_IPC_NOT_RECV;
+
+	// new code:
+	// phase one: enqueue to the receiver, and wake up the receiver if possible (when the receiver is ready to receive)
+	lock_g(GLOCK_IPC);
+	if (env->env_ipc_list_entry < N_IPC_LIST) {
+		env->env_ipc_list[env->env_ipc_list_entry++] = curenv->env_id;
+		//cprintf("%x enqueue %x <send_1>\n", curenv->env_id, env->env_id);
+		// only wake the receiver when recving = 1 (we use 2 as 'recver already wake one sender, please dont interrupt')
+		if (env->env_ipc_recving == 1 && env->env_status == ENV_NOT_RUNNABLE) {
+			//cprintf("%x wake up %x <send_1>\n", curenv->env_id, env->env_id);
+			env->env_status = ENV_RUNNABLE;
+		}
+	} else {
+		// queue is full...
+		// In real OS, should be a real queue with very large capacity
+		// we just simplify it here
+		unlock_g(GLOCK_IPC);
+		return -E_IPC_NOT_RECV;
+	}
+	unlock_g(GLOCK_IPC);
+	// now go to sleep, and wait for the wake up from receiver
+	//cprintf("%x sleep <send_1>\n", curenv->env_id);
+	curenv->env_ipc_sending = 1;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	curenv->env_tf.tf_regs.reg_rax = 0;
+	sched_yield();
+
+	return 0;
+}
+
+static int
+sys_ipc_try_send_2(envid_t envid, uint32_t value, void *srcva, unsigned perm)
+{
+	// LAB 4: Your code here.
+	struct Env *env;
+	struct PageInfo *pp;
+	int ret;
+	pte_t *pte;
+	//cprintf("%x wakeup <send_2>\n", curenv->env_id);
+	if ((ret = envid2env(envid, &env, 0)) < 0)
+		return ret;
+
+	// Challenge 8 of Lab 4
+	// enqueue to receiver, then check if the receiver is recving
+	// if the receiver is recving, then wake it up
+	//
+	// Old Code here:
+	// if (env->env_ipc_recving == 0)
+	//  	return -E_IPC_NOT_RECV;
+
+	// if we wake up here, then it is time to write the data to receiver
 	env->env_ipc_recving = 0;
 	env->env_ipc_from = curenv->env_id;
 	env->env_ipc_perm = perm;
 	env->env_ipc_value = value;
 	env->env_status = ENV_RUNNABLE;
-
+	curenv->env_ipc_sending = 0;
+	//cprintf("%x wakeup %x <send_2>\n", curenv->env_id, env->env_id);
 	if ((uintptr_t)srcva >= UTOP || (uintptr_t)env->env_ipc_dstva >= UTOP)
 		return 0;
 
@@ -420,8 +477,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		return ret;
 
 	return 0;
-	//panic("sys_ipc_try_send not implemented");
 }
+
 
 // Block until a value is ready.  Record that you want to receive
 // using the env_ipc_recving and env_ipc_dstva fields of struct Env,
@@ -443,11 +500,37 @@ sys_ipc_recv(void *dstva)
 
 	curenv->env_ipc_recving = 1;
 	curenv->env_ipc_dstva = dstva;
+
+	// Challenge 8 of Lab 4
+	// here we check the list (queue)
+	struct Env *env = NULL;
+	envid_t envid;
+	int ret = -1, i;
+	lock_g(GLOCK_IPC);
+	if (curenv->env_ipc_list_entry > 0) {
+		// dequeue a valid env (or NULL)
+		while (ret < 0 && curenv->env_ipc_list_entry > 0) {
+			envid = curenv->env_ipc_list[0];
+			for (i = 0; i < N_IPC_LIST - 1; i++)
+				curenv->env_ipc_list[i] = curenv->env_ipc_list[i+1];
+			curenv->env_ipc_list_entry--;
+			//cprintf("%x dequeue %x <recv>\n", curenv->env_id, envid);
+			ret = envid2env(envid, &env, 0);
+		}
+		if (env) {
+			// found a valid sender, set flag and wake it up
+			//cprintf("%x dequeue %x & wake it up <recv>\n", curenv->env_id, env->env_id);
+			curenv->env_ipc_recving = 2;
+			env->env_status = ENV_RUNNABLE;
+		}
+	}
+	unlock_g(GLOCK_IPC);
+	// now sleep and wait for the sender
+	//cprintf("%x sleep <recv>\n", curenv->env_id);
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	curenv->env_tf.tf_regs.reg_rax = 0;
 	sched_yield();
 
-	//panic("sys_ipc_recv not implemented");
 	return 0;
 }
 
@@ -569,7 +652,7 @@ static int sys_env_set_exception_upcall(envid_t envid, int trapno, void *func)
 // Challenge 10 & 11 of Lab 4
 // Source-specified IPC functions
 static int sys_sipc_try_send(envid_t envid, uint64_t value) {
-	struct Env *env;
+	/*struct Env *env;
 	int ret;
 
 	if ((ret = envid2env(envid, &env, 0)) < 0)
@@ -582,20 +665,139 @@ static int sys_sipc_try_send(envid_t envid, uint64_t value) {
 		return -E_IPC_NOT_RECV;
 
 	env->env_sipc_recving = 0;
+	env->env_tf.tf_regs.reg_rax = value;  // use register to pass
+	env->env_status = ENV_RUNNABLE;
+
+	return 0;*/
+
+	struct Env *env;
+	int ret;
+
+	if ((ret = envid2env(envid, &env, 0)) < 0)
+		return ret;
+
+	// phase one: enqueue to the receiver, and wake up the receiver if possible (when the receiver is ready to receive)
+	if (env->env_ipc_list_entry < N_IPC_LIST) {
+		env->env_ipc_list[env->env_ipc_list_entry++] = curenv->env_id;
+		// only wake the receiver when recving = 1 (we use 2 as 'recver already wake one sender, please dont interrupt')
+		if (env->env_sipc_recving == 1 && (env->env_sipc_from == 0 || env->env_sipc_from == curenv->env_id) && env->env_status == ENV_NOT_RUNNABLE) {
+			env->env_sipc_from = curenv->env_id;
+			env->env_status = ENV_RUNNABLE;
+		}
+	} else {
+		// queue is full...
+		// In real OS, should be a real queue with very large capacity
+		// we just simplify it here
+		return -E_IPC_NOT_RECV;
+	}
+	// now go to sleep, and wait for the wake up from receiver
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	curenv->env_tf.tf_regs.reg_rax = 0;
+	sched_yield();
+
+	return 0;
+}
+
+static int sys_sipc_try_send_2(envid_t envid, uint64_t value) {
+	struct Env *env;
+	int ret;
+
+	if ((ret = envid2env(envid, &env, 0)) < 0)
+		return ret;
+
+	// Challenge 8 of Lab 4
+
+	// if we wake up here, then it is time to write the data to receiver
+	env->env_sipc_recving = 0;
 	env->env_sipc_from = curenv->env_id;
 	env->env_sipc_value = value;
+	env->env_tf.tf_regs.reg_r15 = value; // use register to pass
 	env->env_status = ENV_RUNNABLE;
 
 	return 0;
 }
 
 static int sys_sipc_recv(envid_t from) {
-	curenv->env_sipc_recving = 1;
+/*	curenv->env_sipc_recving = 1;
 	curenv->env_sipc_from = from;
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	curenv->env_tf.tf_regs.reg_rax = 0;
 	sched_yield();
 
+	return 0;*/
+		// LAB 4: Your code here.
+
+	curenv->env_sipc_recving = 1;
+	curenv->env_sipc_from = from;
+
+	// Challenge 8 of Lab 4
+	// here we check the list (queue)
+	struct Env *env = NULL;
+	envid_t envid;
+	int ret = -1, i, j;
+
+	if (curenv->env_ipc_list_entry > 0) {
+		// dequeue a valid env (or NULL)  id should be from
+		// scan the queue to find from
+		for (i = 0; i < N_IPC_LIST; i++)
+			if (from == 0 || curenv->env_ipc_list[i] == from)
+				break;
+		if (from == 0 || (i < N_IPC_LIST && curenv->env_ipc_list[i] == from)) {
+			envid = curenv->env_ipc_list[i];
+			for (j = i; j < N_IPC_LIST - 1; j++)
+				curenv->env_ipc_list[j] = curenv->env_ipc_list[j+1];
+			curenv->env_ipc_list_entry--;
+			ret = envid2env(envid, &env, 0);
+			if (env) {
+				// found a valid sender, set flag and wake it up
+				curenv->env_sipc_recving = 2;
+				env->env_status = ENV_RUNNABLE;
+			}
+		}
+	}
+	// now sleep and wait for the sender
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	sched_yield();
+
+	return 0;
+}
+
+static int sys_exec(uint64_t rip, uint64_t rsp, void *v_ph, uint64_t phnum) {
+	// set trap frame rip & rsp
+	curenv->env_tf.tf_rip = rip;
+	curenv->env_tf.tf_rsp = rsp;
+
+	int perm, i;
+	uint64_t tmp = EXECTEMP;
+	uint64_t va, end;
+	struct PageInfo *p;
+	struct Proghdr *ph = (struct Proghdr *)v_ph;
+
+	// load all hdr with correct perm
+	for (i = 0; i < phnum; i++, ph++) {
+		if (ph->p_type != ELF_PROG_LOAD)
+			continue;
+		perm = PTE_P | PTE_U;
+		if (ph->p_flags & ELF_PROG_FLAG_WRITE)
+			perm |= PTE_W;
+
+		end = ROUNDUP(ph->p_va + ph->p_memsz, PGSIZE);
+		for (va = ROUNDDOWN(ph->p_va, PGSIZE); va != end; tmp += PGSIZE, va += PGSIZE) {
+			if ((p = page_lookup(curenv->env_pml4e, (void *)tmp, NULL)) == NULL)
+				return -E_NO_MEM;
+			if (page_insert(curenv->env_pml4e, p, (void *)va, perm) < 0)
+				return -E_NO_MEM;
+			page_remove(curenv->env_pml4e, (void *)tmp);
+		}
+	}
+
+	if ((p = page_lookup(curenv->env_pml4e, (void *)tmp, NULL)) == NULL)
+		return -E_NO_MEM;
+	if (page_insert(curenv->env_pml4e, p, (void *)(USTACKTOP - PGSIZE), PTE_P | PTE_U | PTE_W) < 0)
+		return -E_NO_MEM;
+	page_remove(curenv->env_pml4e, (void *)tmp);
+
+	env_run(curenv);
 	return 0;
 }
 
@@ -638,6 +840,8 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 		return sys_page_unmap((envid_t)a1, (void *)a2);
 	case SYS_ipc_try_send:
 		return sys_ipc_try_send((envid_t)a1, (uint32_t)a2, (void *)a3, (unsigned)a4);
+	case SYS_ipc_try_send_2:
+		return sys_ipc_try_send_2((envid_t)a1, (uint32_t)a2, (void *)a3, (unsigned)a4);
 	case SYS_ipc_recv:
 		return sys_ipc_recv((void *)a1);
 
@@ -665,8 +869,15 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 		return sys_env_set_exception_upcall((envid_t)a1, (int)a2, (void *)a3);
 	case SYS_sipc_try_send:
 		return sys_sipc_try_send((envid_t)a1, (uint64_t)a2);
+	case SYS_sipc_try_send_2:
+		return sys_sipc_try_send_2((envid_t)a1, (uint64_t)a2);
 	case SYS_sipc_recv:
 		return sys_sipc_recv((envid_t)a1);
+	case SYS_env_print_trapframe:
+		print_trapframe(&curenv->env_tf);
+		return 0;
+	case SYS_exec:
+		return sys_exec((uint64_t)a1, (uint64_t)a2, (void *)a3, (uint64_t)a4);
 	default:
 		return -E_NO_SYS;
 	}

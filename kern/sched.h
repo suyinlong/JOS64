@@ -7,6 +7,7 @@
 #endif
 
 #define PRI_DEF         20
+#define PRI_FS          0
 #define NSCH            40
 
 void sched_init(void);

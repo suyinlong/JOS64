@@ -2,7 +2,7 @@
 * @Author: Yinlong Su
 * @Date:   2016-04-13 19:28:50
 * @Last Modified by:   Yinlong Su
-* @Last Modified time: 2016-04-13 20:41:21
+* @Last Modified time: 2016-05-01 19:36:40
 */
 
 // User Exception Handler Test
@@ -46,6 +46,21 @@ void gpflt_handler(struct UTrapframe *utf) {
 
 void umain(int argc, char **argv) {
     zero = 0;
+/*    uint64_t num = 0, ra, rb, rc, rd;
+    cprintf("asm b\n");
+
+    asm volatile(
+        "cpuid\n"
+
+        : "=a" (ra),
+          "=b" (rb),
+          "=c" (rc),
+          "=d" (rd)
+        : "a" (num)
+        : "cc", "memory");
+    cprintf("asm a\n");
+    cprintf("rax = %016x rbx = %016x rcx = %016x rdx = %016x\n", ra, rb, rc, rd);*/
+
     // set exception handlers
     set_exception_handler(T_DIVIDE, divide_handler);
     set_exception_handler(T_ILLOP, illop_handler);

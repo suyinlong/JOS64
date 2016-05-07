@@ -25,6 +25,7 @@ uint64_t end_debug;
 
 static void boot_aps(void);
 
+envid_t fs_envid;
 
 void
 i386_init(void)
@@ -76,13 +77,20 @@ i386_init(void)
 	boot_aps();
 
 	// Start fs.
-	ENV_CREATE(fs_fs, ENV_TYPE_FS, PRI_DEF);
+	ENV_CREATE(fs_fs, ENV_TYPE_FS, PRI_FS);
 
 #if !defined(TEST_NO_NS)
 	// Start ns.
 	//ENV_CREATE(net_ns, ENV_TYPE_NS);
 	ENV_CREATE(net_ns, ENV_TYPE_NS, PRI_DEF);
 #endif
+
+	// modified for lab6
+	int i;
+	for (i = 0; i < NENV; i++) {
+		if (envs[i].env_type == ENV_TYPE_FS)
+			fs_envid = envs[i].env_id;
+	}
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!
@@ -126,8 +134,8 @@ i386_init(void)
 	//ENV_CREATE(user_primes, ENV_TYPE_USER);
 
 	// Below are Lab 5 test codes
-	//ENV_CREATE(user_testfile, ENV_TYPE_USER);
-	//ENV_CREATE(user_spawnhello, ENV_TYPE_USER);
+	//ENV_CREATE(user_testfile, ENV_TYPE_USER, PRI_DEF);
+	//ENV_CREATE(user_spawnhello, ENV_TYPE_USER, PRI_DEF);
 	//ENV_CREATE(user_testpteshare, ENV_TYPE_USER);
 	//ENV_CREATE(user_testfdsharing, ENV_TYPE_USER);
 	//ENV_CREATE(user_testkbd, ENV_TYPE_USER);

@@ -1,3 +1,808 @@
 List challenge problems completed as part of the lab 6 handin, as well
 as the problem number.  If you worked any previous lab challenges and
 submitted them with this lab, list them here, along with the lab number.
+
+Finish 1, 2, 3, 4 of Lab 2
+Finish 1, 2 of Lab 3
+Finish 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 of Lab 4
+Finish 1, 2, 4, 5 of Lab 5
+
+---------------------------------------------------------------------
+Lab 2 Challenge 1:
+
+We have used the PTE_PS bit in the page directory entries to achieve
+bigger page size. The PTE_PS flag with 1 in PDE indicates that the PDE
+is the lowest level of the page translation, which makes the page size
+equals to 2^9*2^12 = 2^21 = 2MB. In long-mode when the processor
+encounters a page directory entry with PTE_PS = 1, the virtual address
+translation becomes:
+
++---9----+-------9--------+-------9--------+------21-----+
+|  PML4  | Page Directory | Page Directory |    Offset   |
+| Offset | Pointer Offset |     Offset     | within Page |
++--------+----------------+----------------+-------------+
+
+The virtual and physical address of 2MB page must aligned to 2MB
+(obviously since the lowest 21 bits represent the offset with page).
+In "pmaputils.c" we define function page_contiguous_block() to get
+contiguous and aligned block from free page list. The 512 small pages
+in the block remain their pointer field pp_link to help the page_free()
+remove the 2MB page correctly.
+
+We modify the boot_map_region() function to check whether kernel can
+alloc a 2MB page rather than 512 small pages, and use the pgdir_walk()
+function to alloc a 2MB page then set the PDE.PTE_PS to 1.
+
+The check_va2pa() function does not consider the PTE_PS flag, so we
+also modify this function to make it support this feature. Now the
+check_xxxxx() functions works fine under our mix-sized paging.
+
+You can turn on/off this feature by the pte_ps_flag variable in pmap.c.
+To compare the difference, use our monitor tools 'pageinfo'. When the
+PS feature is open, the page number used for translation reduces from
+133 to 5.
+
+PS off: 1 pml4 entries, 1 pdp entries, 130 pd entries and 66064 pt entries.
+        0 1GB pages, 0 2MB pages, 66064 4KB pages (66064 pages in total).
+        133 pages are used for paging translation.
+PS on : 1 pml4 entries, 1 pdp entries, 130 pd entries and 528 pt entries.
+        0 1GB pages, 128 2MB pages, 528 4KB pages (656 pages in total).
+        5 pages are used for paging translation.
+
+Note: After Challenge 4, the number of the pages are used for paging
+      translation turns to 7. This is because we use extra memory space
+      to store virtual maps.
+
+Note: When we merge the code of challenge problems into Lab5-handin, the
+      number are 135 vs 13.
+
+---------------------------------------------------------------------
+Lab 2 Challenge 2:
+
+In "mmutils.c" we provide some commands to help debug JOS:
+
+1.  pageinfo
+    This command displays the basic paging information of current (kernel)
+    address space, including location of PML4 table, CR4 register, numbers
+    of table entries and numbers of pages.
+
+2.  showmaps
+    Example: showmaps 0x8000a00000 0x8000c00000
+    This command displays all mappings within the given virtual address
+    range.
+
+3.  setmap
+    Example: setmap 0x8000a00000 0x8000c00000 -set PTE_W -clr PTE_D PTE_PCD
+    This command changes the permission flag of all mappings within the
+    range.
+
+4.  dumpmem
+    Example: dumpmem -v 0x8000a00000 0x8000a01000
+    This command dumps the contents in the memory range.
+
+5.  binfo, bmalloc, bfree, bsplit, bcoalesce
+    Example: binfo
+             bmalloc 16384
+             bfree 0x9000000000
+             bsplit 0x9000000000 4
+             bcoalesce 4 0x9000000000 0x9000001000 0x9000002000 0x9000003000
+    These commands provide direct access to use our contiguous block functions.
+    binfo shows all mappings of blocks. bmalloc can allocate one physically
+    contiguous block with given size in bytes. bfree frees one allocated block.
+    bsplit command splits a block into equal pieces. And bcoalesce can coalesce
+    contiguous blocks into one large block.
+    See Challenge 4 for more details.
+
+6.  s, c
+    Example: s
+             c
+    These commands provide debug function for JOS. When the kernel is interrupted
+    by T_BRKPT or T_DEBUG, the debugger features is on.
+
+7.  einfo
+    This command displays the environment list of the kernel.
+
+You can just type the command in the console to see the instruction.
+
+---------------------------------------------------------------------
+Lab 2 Challenge 3:
+
+There are some pages belong to the kernel in user environments. For example,
+since the CPU uses linear addresses for IDT, GDT, TSS and syscall/sysext,
+the GDT and IDT must be in the virtual address space.
+In order to allow user environments to unrestrictly use full 4GB virtual
+address space, we can rewrite the protection fault exception handler. The
+idea is when user processes try to access a kernel page, it raise the
+protection fault then we can handle this in the handler.
+For example, a user process tries to alloc/access a virtual address where our
+IDT is mapped. This raises a protection fault, and in the handler we try to
+do the following things:
+    1.  Find an unused virtual page (if there is no free virtual page, try
+        to write one unimportant page into the disk, store this information)
+    2.  Change the mapping of the IDT to this unused page in virtual space
+    3.  Change the registers to new address if necessary (in this case, change
+        idtr)
+    4.  Return and alloc/access the virtual address as normal
+
+TRANSFER FROM USER MODE TO KERNEL MODE (Processor and Kernel)
+
+This transition happens when an interrupt or exception raises. We take an "int"
+instruction as example, the processor generally do the following things:
+    1.  Switch to the stack defined by the SS0 and RSP0 fields of the TSS
+    2.  Dump the register state of user process to the kernel's stack
+    3.  Use the idtr register to get the n-th descriptor from IDT
+    4.  Check the permission (privilege level)
+    5.  Jump to the entry specified in the interrupt descriptor (CS:RIP)
+Now the kernel has the control flow:
+    1.  Since the user environments may have a different gdtr, idtr and tr,
+        modify these registers to correct addresses under kernel's virtual
+        address space (we save these registers' value somewhere)
+    2.  Since the user environments may have different virtual address mappings
+        in kernel space, load the kernel page table base boot_pml4e into cr3.
+        And flush the TLB
+    3.  Do whatever the interrupt handler need to do
+
+TRANSFER FROM KERNEL MODE TO USER MODE (Processor and Kernel)
+
+When the handler finish its task and wants to return to user process, the kernel
+do the following:
+    1.  Scheduler decides which environment to execute
+    2.  Load the saved cr3, gdt, idt and tr registers of user environment and
+        flush the TLB
+    3.  Use "iret" instruction to jump back to user mode
+The processor will use the cs and eip from the stack to resume the execution of
+user environment.
+
+ACCESS PHYSICAL MEMORY AND I/O DEVICES
+
+Kernel has ring 0 privilege so it can use privileged instructions to access the
+I/O devices. If the kernel wants to access physical memory, it can map the virtual
+addresses to the same physical addresses. Or just do the mapping calculating.
+
+ACCESS USER ENVIRONMENT'S VIRTUAL ADDRESS SPACE
+
+When the kernel alloc the page table for the user environment, it records the page
+table location. So the kernel can easily access any environment's virtual address
+space.
+
+ADVANTAGES AND DISVANTAGES
+
++ Flexibility
+This design allows the user process to access full 4GB virtual address, so the
+design of the programs become more flexible. It also support the programs that need
+very large memory address.
+
+- Performance
+Whenever a user process tries to access a virtual address that belongs to the kernel,
+the kernel needs to swap the page out and change the mapping. It becomes worse when
+there is no free virtual page and the kernel need to swap out an unimportant page to
+the disk.
+Although this happens rarely, there are extra operations of save/load registers (cr3,
+gdtr, idtr, tr) in all interrupt handler. The performance of this scheme is clearly
+low.
+
+- Complexity
+Obviously we need to do extra bookkeepings on the user environment's gdtr, idtr and
+tr. And also the swapped out pages that written to the disk. We need to write code
+to bookkeep those registers and implement a mechanism to swap the page into the disk
+correctly. It definitely increases the complexity of the kernel.
+
+
+---------------------------------------------------------------------
+Lab 2 Challenge 4:
+
+In "pmaputils.c" we provide a series of functions to malloc/free physically
+contiguous buffers larger than 4KB.
+
+We need to store the size of the blocks. Struct BlockInfo is defined in
+"pmaputils.h". A BlockInfo contains the start and end virtual address of the
+block, the physical address and permission.
+
+Considering the large buffer allocation request is not frequent, we store
+the BlockInfo entries in a list. The operations on BlockInfo list will
+take O(n) time.
+
+API:
+
++ void *b_malloc(size_t n);
+
+  The b_malloc() function allocates <n> bytes and returns a pointer to the
+  allocated memory. <n> will be rounded up to a power-of-two number and is
+  at least 4096. If there is a physically contiguous block of size n, then
+  b_malloc() returns the virtual address of allocated memory.
+
++ void b_free(void *va);
+
+  The b_free() function frees the memory space pointed to by <va>. b_free()
+  will check the validity of <va>.
+
++ int b_split(void *va, int split, void **ptr);
+
+  The b_split() function splits the memory space pointed to by <va> to
+  <split> equal pieces. If the space is sucessfully splited, b_split() fills
+  the <ptr> array and returns 0. Otherwise, b_split() returns:
+    -1 if <split> is less than 2 or not a power-of-two number
+    -2 if <va> is invalid,
+    -3 if <split> is too big,
+    -4 if the space pointed to is kernel space
+  Note: b_split() will split the 2MB page into 512 4KB pages if the unit size
+        is less than 2MB. See "pmaputils.c" for more details.
+
++ void *b_coalesce(int coalesce, void **ptr);
+
+  The b_coalesce() function coalesces the memory space pointed by <ptr> array
+  to one block. <coalesce> is the length of the array. If the <ptr> is valid
+  and contiguous, b_coalesce() returns the pointer to the coalesced block.
+  Note: b_coalesce() will try to use 2MB page when possible.
+
+Brief description of other functions in "pmaputils.c":
+  Prefix "page_": PageInfo or PageTable related functions
+                  { page_contiguous_block,
+                    page_contiguous_alloc,
+                    page_incref,
+                    page_free_list_reorder,
+                    page_update }
+  Prefix "b_"   : Contiguous pages related functions
+                  { b_malloc,
+                    b_free,
+                    b_split,
+                    b_coalesce }
+  Prefix "bi_"  : Block Info related functions
+                  { bi_init,
+                    bi_lookup,
+                    bi_insert,
+                    bi_delete,
+                    bi_block }
+We also provide check function check_b_utils() to check the contiguous pages
+functions to work correctly. This function uses our API to malloc 2 blocks.
+One is a 32KB block, containing eight 4KB pages. The other is an 8MB block,
+containing four 2MB pages. It also tests the split and coalesce features.
+During spliting and coalescing of the 8MB block, the page number and size
+will change accordingly. See more details in "pmaputils.c".
+
+---------------------------------------------------------------------
+Challenge 1 of Lab 3
+
+We modify the macros in trapentry.S to automatically generate a entry
+table for trap.c to use.
+When using TRAPHANDLER and TRAPHANDLER_NOEC, the macros add a new entry
+to our global symbol 'entry_array' in the data segment. We also add
+a padding at the end of entry_array to indicate 'end of array'.
+Now in trap_init(), we only need to use a for-loop to install all the
+handlers.
+
+---------------------------------------------------------------------
+Challenge 2 of Lab 3
+
+Add simple debug command s (single step), c (continue) in the directory
+'kern/disasm'.
+It uses TF (trap flag) of EFLAGS to provide signle step and continue
+function.
+
+Test: We add breakpoint test program along with the interrupt-driven
+      IDE device access test example. Type 'idetest' in the monitor,
+      and you will encounter a breakpoint. You can type s to single
+      step or c to continue.
+
+---------------------------------------------------------------------
+Challenge 1 of Lab 4
+
+Add grained lock in kern/spinlock.h
+
+GLOCK_PGA: Page allocator lock, protect PageInfo structure
+GLOCK_CON: Protect console (monitor, series port, parallel port) I/O
+GLOCK_SCH: Protect our priority lists of scheduler (challenge 2 of lab 4)
+GLOCK_IPC: Protect our IPC message queue (challenge 8 of lab 4)
+
+---------------------------------------------------------------------
+Challenge 2 of Lab 4
+
+O(1) fixed-priority scheduler is added to JOS
+
+DATA STRUCTURE
+
+Two arrays (active, expired) of runqueues are added to JOS. These queues
+are allocated in x64_vm_init(). Each array has 40 slots of queues.
+Struct Env is also modified to add the priority and pri_link fields. The
+priority field stores the fixed-priority of the environment. The pri_link
+field is used in our runqueue to point to the next environment with same
+priority. When initializing, those fields are set to 0 and NULL,
+respectively.
+
+CREATE AN ENVIRONMENT WITH PRIORITY
+
+env_create() is modified with a new argument priority. The function now
+sets the priority field of the environment structure then enqueue it into
+the runqueue of expired array. The macro ENV_CREATE is also modified to
+adapt to env_create(). The default priority (PRI_DEF) is 20.
+
+FORK AN ENVIRONMENT WITH PRIORITY
+
+By default, the child environment has the same priority of the parent
+environment. At the end of sys_exofork() the new environment will enqueue
+the runqueue of exipred array.
+
+FREE AN ENVIRONMENT WITH PRIORITY
+
+env_free() is modified to call function sched_free() to remove an
+environment from the runqueue of expired array.
+
+SCHEDULING WITH PRIORITY
+
+The scheduler now scan the active array from the highest priority (=0) to
+the lowest priority (=39). When the scheduler encounter an environment
+with status ENV_RUNNABLE, it dequeue this environment and enqueue it into
+the runqueue in expired array of the same priority then try to run it.
+If the scheduler can not find any runnable environment in the active array,
+it will swap the active array with expired array then try again. After the
+second scan if it still fails, the scheduler will try to run current
+environment (if possible) or call sched_halt().
+
+TEST PROGRAM (user/printa.c printb.c printd.c)
+
+To invoke the test program, type 'schedtest' in the monitor. The program
+creates 3 environments (PRI_DEF = 20) then call scheduler:
+    ENV_CREATE(user_printa, ENV_TYPE_USER, PRI_DEF);
+    ENV_CREATE(user_printb, ENV_TYPE_USER, PRI_DEF - 10);
+    ENV_CREATE(user_printd, ENV_TYPE_USER, PRI_DEF + 10);
+With the priorities, the execution order should be printb > printa >printd
+
+---------------------------------------------------------------------
+Challenge 3 of Lab 4
+
+FPU Support:
+
+* Modify the Trapframe structure in <inc/trap.h>, add 512 bytes FxRegs.
+
+* Modify _alltraps in trapentry.S, use FXSAVE and FXRSTOR to save/restore
+  x87 FPU, MMX Technology, and SSE State
+
+* Modify env_pop_tf() in env.c, pop the trap frame correctly
+
+Test program (user/fputest.c)
+
+We wrote a user program to use FLDPI instruction to get PI from FPU. Since
+JOS has poor support to floating-point numbers (none math functions provided,
+any arguments or return values as float/double will cause error), we use
+the conversion and arithmetic instructions of FPU to print out PI. The test
+program is in 'user/fputest.c'. You can type command 'fputest' in the monitor
+to invoke the program.
+
+---------------------------------------------------------------------
+Challenge 4 of Lab 4
+
+Snapshot of child environment
+
+DATA STRUCTURE
+
+We define the struct EnvSnapshot in <inc/env.h>. This structure saves the Env
+struct and stack page of the environment.
+
+    struct EnvSnapshot {
+        struct Env env;
+        uint8_t stack[PGSIZE];
+    };
+
+The EnvSnapshot is over 4096 bytes, so we make our block malloc/free functions
+of challenge 4 of lab 2 become system calls. See <inc/lib.h> <inc/syscall.h>
+<kern/syscall.c> <lib/syscall.c> for more details.
+
+SYSTEM CALLS
+
+int sys_env_save(envid_t envid, struct EnvSnapshot *ess);
+
+The sys_env_save() function use envid2env() and user_mem_check() to check the
+validity of the environment id and the memory space of EnvSnapshot structure.
+Then save the env structure and the content of stack page into 'ess'.
+
+int sys_env_load(envid_t envid, struct EnvSnapshot *ess);
+
+The sys_env_load() function use envid2env() and user_mem_check() to check the
+validity of the environment id and the memory space of EnvSnapshot structure.
+Then load the env structure and the content of stack page from 'ess'.
+
+void *sys_b_malloc(size_t n);
+
+This is the block malloc function in challege 4 of lab 2. We use it to malloc
+the memory space to store struct EnvSnapShot.
+
+void sys_b_free(void *va);
+
+This is the block free function in challege 4 of lab 2. We use it to free
+the memory space to store struct EnvSnapShot.
+
+TEST PROGRAM (user/snapshottest.c)
+
+We wrote a program to test the snapshot feature. To invoke the test program from
+the monitor, type 'snapshottest' then press enter.
+The program first read a number (0-9) from user input, then fork a child. The
+parent process will run 10 loops, starting from 0. At the second loop it will
+save the running state of the child process. And at the ninth loop it will load
+the running state to the child process. The child process will run 25 loops
+starting from the number given by user. You can see after the loading, the child
+process just reverse back to previous state.
+
+MISC
+
+We only save the vital state of the environment. If we really want a full backup
+of the environment, we may also need to save: the extra pages of the stack, the
+global variables, the memory mappings (all page tables), and all the pages which
+the environment is using. Then the time and space cost will be very expensive.
+
+---------------------------------------------------------------------
+Challenge 5 of Lab 4
+
+User Exception Handler
+
+We provide a new lib function to allow users to handle the exceptions by
+themselves. The basic idea is same as user page fault handler.
+In <lib/exception.c> we have the lib function:
+    void set_exception_handler(int trapno, eHandler handler);
+The assembly language exception entrypoints are defined in <lib/eentry.S>.
+
+Test program (user/ehandlertest.c)
+
+Type 'ehandlertest' in the monitor to invoke the test program. The program
+registers three exception handlers on divide-by-zero, illegal opcode and
+general protection fault.
+
+---------------------------------------------------------------------
+Challenge 6 of Lab 4
+
+Shared-memory fork()
+
+Implement sfork() in <lib/fork.c>. Now the child and the parent share all
+their memory pages (map) except for pages in the stack area (COW).
+
+---------------------------------------------------------------------
+Challenge 7 of Lab 4
+
+BENCHMARKING TEST PROGRAM (user/forktest.c)
+
+We use RDTSC instruction to benchmark the performance of different approachs
+of fork(). Type 'forktest' in the monitor to invoke the test program.
+One test result is:
+  [dumbfork: 9145800]    [fork: 7640176]    [sfork: 4278556]
+Dumbfork takes a lot of ticks on switching between user mode and kernel mode.
+Our fork() takes less time since its work is done in one switch. The shared-
+memory fork() takes less time than fork() because it doesn't need to modify
+the PTE_W / PTE_COW flags thus uses less calls.
+Although the ticks do not show the actual clock cycles of running time, you
+can get rough comparison result from the numbers.
+
+---------------------------------------------------------------------
+Challenge 8 of Lab 4
+
+No loop ipc_send
+
+The ipc_send() has to loop since the target environment may not be in the
+mode of receiving. In order to send the message sucuessfully, the sender
+use this loop to keep trying until the target receives the message (or some
+fatal error occurs).
+
+We have modifies the ipc lib calls and system calls so that the ipc_send()
+does not need to loop. We were inspired by Liedtke's paper, 'Improving IPC
+by Kernel Design', metioned in Challenge 11. In order to achieve that, we
+need a queue to store the incoming send request per environment. Then the
+sender only need to enqueue, sleep and wait for the receiver to wake it up.
+Now we use sleep and wake-up instead of while-loop thus the ipc takes less
+CPU time.
+
+DATA STRUCTURE
+
+To simplify, we use a fixed size arraylist in env structure as our 'queue'.
+In real OS, it should be a real queue with large capacity. The 'queue'
+stores all the id of envs that want to send a message to the target env.
+
+FLOW
+
+Note: When we say wake up here, it means set the (target) env state to
+      ENV_RUNNABLE
+      When we say sleep here, it means set the (current) env state to
+      ENV_NOT_RUNNABLE and call sched_yield()
+
+IPC_SEND (syscall)
+Phase 1:
+    1. Enqueue to the receiver's queue
+    2. Check the receiver's state, if recving = 1, then wake up the receiver
+    3. Set return value (rax) as 0, then sleep
+Phase 2: [the receiver woke up the sender]
+    1. Check the receiver's state, recving should be 2 (we set this as our
+       two-phase ipc flag)
+    2. Set the receiver's ipc value, id, va, etc.
+    3. Wake up the receiver (again) and return.
+
+IPC_RECV (syscall)
+Phase 1:
+    1. Set the recving flag to 1
+    2. Check the queue. If there is some envs in the queue, try to dequeue
+       one valid sender. If there is one, wake up the sender and set recving
+       to 2.
+    3. Set the return value (rax) as recving flag (we use this to check
+       whether it has dequeued one env), then sleep
+Phase 2: [the sender woke up the receiver]
+    1. Nothing needs to be done, just return to ipc_recv at lib/ipc.c
+
+As you can see here, IPC_SEND in syscall has two parts and we seperate them
+with sleep (yield). This is because if we yield in kernel mode, it will fall
+into user mode next time it is running, which is in ipc_send of lib/ipc.c.
+So we divide the IPC_SEND as two system calls: sys_ipc_try_send and
+sys_ipc_try_send_2. The phase 2 of IPC_RECV has nothing to do, so it doesn't
+need two parts. But we really want the syscall dequeue one env properly so
+we check this in ipc_recv of lib/ipc.c.
+
+IPC_SEND (lib)
+    1. Call phase 1 of IPC_SEND system call
+    2. After waking up, check the return value (should be 0)
+    3. Call phase 2 of IPC_SEND system call
+
+IPC_RECV (lib)
+    1. Call IPC_RECV system call
+    2. After waking up, if it hasn't dequeued one env, then go to step 1
+       try to dequeue one.
+    3. Set env_store, pg, then return the value.
+
+By doing this, we make sure the IPC calls are sleep & wake up procedure.
+The scenario of multiple environments try to send to one env will not
+cause conflicts since we check the recving flag at IPC_SEND (syscall)
+step 2. When the receiver already has a excepted sender, other senders
+won't wake it up since the flag becomes 2.
+Another scenario is that when one or more senders are queued, the receiver
+suddenly exits (intentionally or not). The old while-loop IPC will almost
+immediately detect and return the error 'bad environment'. Meanwhile our
+envs are sleeping. To fix that, we modify the env_destroy() in env.c to
+wake up all the envs in the queue when the env is destroying.
+We also modify the ipc_try_send's return value. Old function returns void
+but we need to know if error occurs in the procedure rather than just
+panic in the function.
+We also add lock to the queue modfication operation to avoid race condition.
+
+To test the new IPC functions, we provide a test program (user/ipctest.c).
+Type 'ipctest' in kernel monitor to invoke it. The example program
+forks 6 children and send a number to all of them, but only receives 3
+return value. This example shows if our IPC functions can queue up sending
+requests, wake up senders and handle teminated receiver correctly.
+
+---------------------------------------------------------------------
+Challenge 9 of Lab 4
+
+Concurrent Matrix Multiplication
+
+Calculate IN * A (user/matrix.c)
+In the monitor, use command 'matrixtest' to invoke the test program.
+We use our fork() to fork 12 child processes. Every node know its right and
+bottom nodes. The parent node feeds three input nodes (1,0) (2,0) (3,0) the
+value of matrix IN row by row. And nine center nodes accept the numbers passed
+from their left and top. The final result is sent back to parent node.
+
+ +---+    +---+    +---+    +---+    +---+
+ | I | → |1,0| → |1,1| → |1,2| → |1,3|
+ | N |    +---+    +---+    +---+    +---+
+ | P |               ↓        ↓        ↓
+ | U |    +---+    +---+    +---+    +---+
+ | T | → |2,0| → |2,1| → |2,2| → |2,3|
+ |   |    +---+    +---+    +---+    +---+
+ | S |               ↓        ↓        ↓
+ | T |    +---+    +---+    +---+    +---+
+ | R | → |3,0| → |3,1| → |3,2| → |3,3|
+ | E |    +---+    +---+    +---+    +---+
+ | A |               ↓        ↓        ↓
+ | M +-----------------------------------+
+ | +           OUTPUT STREAM             |
+ +---------------------------------------+
+
+ NOTE:
+   1.To simplify the program, we make matrix A as a constant matrix and every
+   child can access it directly. It is almost the same as the parent node gets
+   input from user then forks children and every child has matrix A. We just
+   don't want to type the numbers every time the program runs.
+   2.And the IN matrix is also a constant matrix (coz we are lazy...). But our
+   child nodes only accept the numbers from IPC message.
+
+COMMAND: (in kernel monitor)
+  matrixtest
+
+---------------------------------------------------------------------
+Challenge 10 of Lab 4
+
+Power series calculator
+
+Calculate the power series of sin(x+x^3) (user/powerseries.c)
+
+The program uses Doug McIlroy's methods to calculate the power series of
+sin(x+x^3).
+
+The forumla of multiply stream:
+    P = F G
+    P0 + xP' = F0G0 + x (F0G'+G0F') + x^2 F'G'
+So solving P0 is easy (P0 = F0G0). The problem can be solved recursively.
+
+The forumla of substitution stream:
+  S = F (G)
+  S0 + xS' = F0 + x G' F'(G)
+  S0 = F0 + G0 * F'(G)[0]
+Actually solving S0 is not easy. If G0 is not zero, then the S0 is the sum of
+an infinite series.
+
+Those streams fork lots of children thus are very expensive. It will overflow
+the limitation of max environments of JOS very quick.
+We also implement source-specified IPC to receive the value from desired
+target. The code is in lib/sipc.c kern/syscall.c
+
+COMMAND: (in kernel monitor)
+  powerseriestest
+
+---------------------------------------------------------------------
+Challenge 11 of Lab 4
+
+We use some techniques to help improve IPC performance.
+
+1.  Reduce the system calls & Wakeups
+    Entering and leaving kernel mode are expensive. Our implementation of
+    two-phase sleep and wake-up ipc saves a lot of mode switches. The old
+    design of ipc_send is a while loop that constantly enters and leaves
+    system call if the sending is not done.
+
+    After we changed the ipc functions, the switch numbers are:
+    +==========+========+==============+
+    | Function |    New    |    Old    |
+    +==========+===========+===========+
+    | ipc_send |     2     | 1, 2, ... |
+    | ipc_recv |    1, 2   |     1     |
+    +==========+===========+===========+
+
+    Note: Our new ipc_recv may enter & leave several times. The scenarios
+          are:
+          One Time: When entering ipc_recv, the queue is not empty and we
+                    dequeue one valid environment sucessfully.
+                    * Usually happens when one process calls send first,
+                    another calls recv later.
+          Two Time: When entering ipc_recv, there is no env in the queue
+                    or all the envs in queue are invalid (terminated maybe).
+                    So we have to dequeue one properly.
+                    * Usually happens when one process calls recv first,
+                    then comes another process calls send.
+          >2  Time: All the envs in receiver's queue are invalid but the
+                    wake-up comes constantly.
+                    * Very rare, happens when a bug or malicious program comes
+                    into ipc_send of lib, crashes after first part of ipc_send
+
+          In general, the switch number is still between 1 and 2.
+
+2.  Pass short message via register
+    Many IPC messages are very short. We can transfer the short messages via
+    registers by carefully using them. We modify our source-specified IPC
+    (which uses 64-bit as passing values rather than 32-bit of JOS' IPC) to
+    use r15 register to pass the 8-byte message. The sender just modify the
+    trapframe of the receiver at send phase two. Then the receiver reads the
+    value from its r15 register. More bytes can be transferred if we carefully
+    design the usage of registers.
+
+---------------------------------------------------------------------
+Challenge 1 of Lab 5
+
+Interrupt-driven IDE disk access
+
+We implemented the interrupt-driven IDE driver (without DMA). The old
+ide_wait_ready() function uses a while loop to keep asking the device
+status until it is ready. Now we change the wait function to sleep until
+an IRQ_IDE interrupt comes.
+
+a.  We add a interrupt handler for IRQ_IDE in 'trap.c'. It wakes up the FS
+    if the FS is waiting.
+b.  The new ide_wait_ready_int() function now reads the status register of
+    the IDE device. If the status is not ready, it sets the FS env status to
+    ENV_FS_WAITING then sleeps. The scheduler will not run the FS env with
+    status ENV_FS_WAITING.
+    When interrupt comes, FS wakes up in ide_wait_ready_int(). Try read the
+    status again. If it is not ready, wait and sleep again. Otherwise, send
+    EOI to acknowledge the interrupt and clear the nIEN flag of device control
+    register to enable next interrupt.
+
+Note: JOS masks all the interrupts in kernel mode. So when there is only one
+      env (FS) in the system (and with FS_WAITING or NOT_RUNNABLE status),
+      the IRQ_IDE interrupt won't be handled!
+      When fs_init() is executing, there is only FS in the system. If it sleeps
+      and waits, then the kernel won't wake it up. Therefore we keep PIO access
+      when booting the FS. After fs_init() is done, it switches from
+      ide_wait_ready_pio() to ide_wait_ready_int(). See ide_set_wait_int() in
+      'ide.c'.
+      Some OS of those who mask interrupts in kernel mode create an empty
+      runnable background user environment to avoid falling into kernel mode
+      so that the interrupts to be handled. We don't want to do that because we
+      love JOS' monitor and want to type our test command in it. So make sure
+      there is one runnable user env when you want FS runs correctly. But you
+      can get the idea that add a blank user env to make the FS run properly.
+
+Test: command 'idetest' in the monitor (user/idetest.c)
+      The ide test program is modified from 'testfdsharing.c'. We just add two
+      cprintf to notify there is a breakpoint coming and you can use 's' or 'c'
+      command we provided to single-step or continue.
+
+---
+Polling vs. IRQ
+Polling Advantages: Polling responds more quickly than an IRQ.
+                    The logic of polling is much simpler than waiting on an IRQ.
+Polling Disadvantage: In a multitasking environment, polling will eat up all
+                      your CPU time. However, in singletasking mode this is not
+                      an issue (the CPU has nothing better to do) -- so polling
+                      is a good thing, then.
+
+---------------------------------------------------------------------
+Challenge 2 of Lab 5
+Reclaiming the block cache
+
+CPU automatically set page table entry PTE_A to 1 when the page or page entry
+is accessed. We can use PTE_A flag to help recycle block cache.
+
+fs_recycle() in fs/fs.c:
+In every recycling scan, we scan each data block. If the block is presented but
+not accessed, then flush the block and free the block cache. After the scan,
+set all the block PTE_A to 0.
+
+va_is_accessed() va_clr_accessed() in fs/bc.c:
+Some functions to help check and clear the PTE_A flag.
+
+serve_recycle() in fs/serv.c:
+Add new FS request: FSREQ_RECYCLE to recycle the block cache.
+
+sched_fs_recycle() in sched.c:
+Everytime the scheduler schedule SCH_CYCLE_FS times, it will send
+'FSREQ_RECYCLE' to FS to invoke recycling.
+When there is no env running, scheduler will send 'FSREQ_RECYCLE'
+to FS one time.
+
+---------------------------------------------------------------------
+Challenge 4 of Lab 5
+
+Inode & Hard link
+
+Our first idea was using 'Dentry Object' and 'Inode Object' like linux. Strut
+File is used as inode in both memory and disk and we create dentry object in
+memory. Then all the functions working on File need to change. And the
+walkthrough of 'Dentry' is quite different from 'File'.
+
+So we decide not to use 'dentry' but make 'File' a bit more like inode. We add
+a new type of File 'FSTYPE_LNK' as hard link. We add two fields in File:
+f_nlink and f_inode. If File is a regular file, f_nlink saves the link number
+point to this (regular) file. If File is a hard link, f_inode points to the
+(regular) file it is linked.
+
+In fs/fs.c we add function fs_link(). We made it similar to Linux link. The
+source cannot be a directory and must exist. The target must be in a valid
+directory. After linking, the source file's f_nlink will increase by 1.
+
+We also modify file_open() in fs/fs.c. If the open file is a hard link, it
+will find the actual linked file and return it. And file_remove() will
+decrease the nlink count of linked file if the deleting file is a hard link.
+
+fs/serv.c lib/file.c are also modified to provide user interface. The FS now
+accept IPC request FSREQ_LINK. We made a test program 'linktest'
+(user/linktest.c) to test the hard link.
+
+TEST (user/linktest.c)
+  command: 'linktest' in the kernel monitor
+
+  1. Create one new file 'base' and write something
+  2. Create a link 'mylink1' to 'base'
+  3. Create a link 'mylink2' to 'mylink1'
+  4. Read the content of 'base' 'mylink1' 'mylink2'
+  5. Try to delete 'base' (should fail, f_nlink=2)
+  6. Delete 'mylink1'
+  7. Try to delete 'base' (should fail, f_nlink=1)
+  8. Delete 'mylink2'
+  9. Delete 'base'
+
+---------------------------------------------------------------------
+Challenge 5 of Lab 5
+
+exec
+
+We implement Unix-style exec. The code are in lib/exec.c and kern/syscall.c.
+The idea is similar to spawn, but we first load the segments to a temp region.
+Then in system call (kernel mode), we move the segments back and set the rip
+and rsp of the trapframe.
+
+Use our test program (user/exectest.c) to see the result. Type 'exectest' in
+the kernel monitor. You should see the program exec the hello program with
+same environment id.

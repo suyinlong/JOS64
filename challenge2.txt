@@ -90,9 +90,8 @@ In "mmutils.c" we provide some commands to help debug JOS:
     contiguous blocks into one large block.
     See Challenge 4 for more details.
 
-6.  u, s, c
-    Example: u
-             s
+6.  s, c
+    Example: s
              c
     These commands provide debug function for JOS. When the kernel is interrupted
     by T_BRKPT or T_DEBUG, the debugger features is on.

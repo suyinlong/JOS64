@@ -1,3 +1,132 @@
 List challenge problems completed as part of the lab 5 handin, as well
 as the problem number.  If you worked any previous lab challenges and
 submitted them with this lab, list them here, along with the lab number.
+
+---------------------------------------------------------------------
+Challenge 1 of Lab 5
+
+Interrupt-driven IDE disk access
+
+We implemented the interrupt-driven IDE driver (without DMA). The old
+ide_wait_ready() function uses a while loop to keep asking the device
+status until it is ready. Now we change the wait function to sleep until
+an IRQ_IDE interrupt comes.
+
+a.  We add a interrupt handler for IRQ_IDE in 'trap.c'. It wakes up the FS
+    if the FS is waiting.
+b.  The new ide_wait_ready_int() function now reads the status register of
+    the IDE device. If the status is not ready, it sets the FS env status to
+    ENV_FS_WAITING then sleeps. The scheduler will not run the FS env with
+    status ENV_FS_WAITING.
+    When interrupt comes, FS wakes up in ide_wait_ready_int(). Try read the
+    status again. If it is not ready, wait and sleep again. Otherwise, send
+    EOI to acknowledge the interrupt and clear the nIEN flag of device control
+    register to enable next interrupt.
+
+Note: JOS masks all the interrupts in kernel mode. So when there is only one
+      env (FS) in the system (and with FS_WAITING or NOT_RUNNABLE status),
+      the IRQ_IDE interrupt won't be handled!
+      When fs_init() is executing, there is only FS in the system. If it sleeps
+      and waits, then the kernel won't wake it up. Therefore we keep PIO access
+      when booting the FS. After fs_init() is done, it switches from
+      ide_wait_ready_pio() to ide_wait_ready_int(). See ide_set_wait_int() in
+      'ide.c'.
+      Some OS of those who mask interrupts in kernel mode create an empty
+      runnable background user environment to avoid falling into kernel mode
+      so that the interrupts to be handled. We don't want to do that because we
+      love JOS' monitor and want to type our test command in it. So make sure
+      there is one runnable user env when you want FS runs correctly. But you
+      can get the idea that add a blank user env to make the FS run properly.
+
+Test: command 'idetest' in the monitor (user/idetest.c)
+      The ide test program is modified from 'testfdsharing.c'. We just add two
+      cprintf to notify there is a breakpoint coming and you can use 's' or 'c'
+      command we provided to single-step or continue.
+
+---
+Polling vs. IRQ
+Polling Advantages: Polling responds more quickly than an IRQ.
+                    The logic of polling is much simpler than waiting on an IRQ.
+Polling Disadvantage: In a multitasking environment, polling will eat up all
+                      your CPU time. However, in singletasking mode this is not
+                      an issue (the CPU has nothing better to do) -- so polling
+                      is a good thing, then.
+
+---------------------------------------------------------------------
+Challenge 2 of Lab 5
+Reclaiming the block cache
+
+CPU automatically set page table entry PTE_A to 1 when the page or page entry
+is accessed. We can use PTE_A flag to help recycle block cache.
+
+fs_recycle() in fs/fs.c:
+In every recycling scan, we scan each data block. If the block is presented but
+not accessed, then flush the block and free the block cache. After the scan,
+set all the block PTE_A to 0.
+
+va_is_accessed() va_clr_accessed() in fs/bc.c:
+Some functions to help check and clear the PTE_A flag.
+
+serve_recycle() in fs/serv.c:
+Add new FS request: FSREQ_RECYCLE to recycle the block cache.
+
+sched_fs_recycle() in sched.c:
+Everytime the scheduler schedule SCH_CYCLE_FS times, it will send
+'FSREQ_RECYCLE' to FS to invoke recycling.
+When there is no env running, scheduler will send 'FSREQ_RECYCLE'
+to FS one time.
+
+---------------------------------------------------------------------
+Challenge 4 of Lab 5
+
+Inode & Hard link
+
+Our first idea was using 'Dentry Object' and 'Inode Object' like linux. Strut
+File is used as inode in both memory and disk and we create dentry object in
+memory. Then all the functions working on File need to change. And the
+walkthrough of 'Dentry' is quite different from 'File'.
+
+So we decide not to use 'dentry' but make 'File' a bit more like inode. We add
+a new type of File 'FSTYPE_LNK' as hard link. We add two fields in File:
+f_nlink and f_inode. If File is a regular file, f_nlink saves the link number
+point to this (regular) file. If File is a hard link, f_inode points to the
+(regular) file it is linked.
+
+In fs/fs.c we add function fs_link(). We made it similar to Linux link. The
+source cannot be a directory and must exist. The target must be in a valid
+directory. After linking, the source file's f_nlink will increase by 1.
+
+We also modify file_open() in fs/fs.c. If the open file is a hard link, it
+will find the actual linked file and return it. And file_remove() will
+decrease the nlink count of linked file if the deleting file is a hard link.
+
+fs/serv.c lib/file.c are also modified to provide user interface. The FS now
+accept IPC request FSREQ_LINK. We made a test program 'linktest'
+(user/linktest.c) to test the hard link.
+
+TEST (user/linktest.c)
+  command: 'linktest' in the kernel monitor
+
+  1. Create one new file 'base' and write something
+  2. Create a link 'mylink1' to 'base'
+  3. Create a link 'mylink2' to 'mylink1'
+  4. Read the content of 'base' 'mylink1' 'mylink2'
+  5. Try to delete 'base' (should fail, f_nlink=2)
+  6. Delete 'mylink1'
+  7. Try to delete 'base' (should fail, f_nlink=1)
+  8. Delete 'mylink2'
+  9. Delete 'base'
+
+---------------------------------------------------------------------
+Challenge 5 of Lab 5
+
+exec
+
+We implement Unix-style exec. The code are in lib/exec.c and kern/syscall.c.
+The idea is similar to spawn, but we first load the segments to a temp region.
+Then in system call (kernel mode), we move the segments back and set the rip
+and rsp of the trapframe.
+
+Use our test program (user/exectest.c) to see the result. Type 'exectest' in
+the kernel monitor. You should see the program exec the hello program with
+same environment id.

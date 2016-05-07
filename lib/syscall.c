@@ -36,7 +36,36 @@ syscall(int num, int check, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 
 	return ret;
 }
+/*
+static inline int64_t
+fast_syscall(int num, int check, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5) {
+	// int64_t ret;
+	uint64_t es, ds, rip, cs;
+	cprintf("in syscall\n");
 
+	// asm volatile("movw %%es, %0\n"
+	// 	"movw %%ds, %1\n"
+	// 	"movw %%cs, %2\n"
+	// 	: "=m"(es),
+	// 	  "=m"(ds),
+	// 	  "=m"(cs));
+	// cprintf("before es, ds, cs %x %x %x\n", es, ds, cs);
+	syscall(SYS_env_print_trapframe, 1, 0,0,0,0,0);
+	asm volatile("syscall\n");
+		// : "=a" (ret)
+		// : "a" (num),
+		//   "d" (a1),
+		//   "b" (a2),
+		//   "D" (a3)
+		// : "cc", "memory");
+	cprintf("syscall returns\n");
+	cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");cprintf("hello\n");
+	// if (check && ret > 0)
+	// 	panic("sysenter %d returned %d (> 0)", num, ret);
+
+	return 0;
+}
+*/
 void
 sys_cputs(const char *s, size_t len)
 {
@@ -112,9 +141,15 @@ sys_ipc_try_send(envid_t envid, uint64_t value, void *srcva, int perm)
 }
 
 int
+sys_ipc_try_send_2(envid_t envid, uint64_t value, void *srcva, int perm)
+{
+	return syscall(SYS_ipc_try_send_2, 0, envid, value, (uint64_t) srcva, perm, 0);
+}
+
+int
 sys_ipc_recv(void *dstva)
 {
-	return syscall(SYS_ipc_recv, 1, (uint64_t)dstva, 0, 0, 0, 0);
+	return syscall(SYS_ipc_recv, 0, (uint64_t)dstva, 0, 0, 0, 0);
 }
 
 unsigned int
@@ -173,7 +208,17 @@ sys_sipc_try_send(envid_t envid, uint64_t value)
 }
 
 uint64_t
+sys_sipc_try_send_2(envid_t envid, uint64_t value)
+{
+	return syscall(SYS_sipc_try_send_2, 0, envid, value, 0, 0, 0);
+}
+
+uint64_t
 sys_sipc_recv(envid_t envid)
 {
 	return syscall(SYS_sipc_recv, 0, envid, 0, 0, 0, 0);
+}
+
+int sys_exec(uint64_t rip, uint64_t rsp, void *ph, uint64_t phnum) {
+	return syscall(SYS_exec, 1, rip, rsp, (uint64_t)ph, phnum, 0);
 }

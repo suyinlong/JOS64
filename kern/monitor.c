@@ -39,7 +39,6 @@ static struct Command commands[] = {
 	{ "bfree", "Free a contiguous block", mon_mm_bfree},
 	{ "bsplit", "Split a contiguous block into equal pieces", mon_mm_bsplit},
 	{ "bcoalesce", "Coalesce several blocks into one block", mon_mm_bcoalesce},
-	{ "u", "Debug command u", disasm_u},
 	{ "s", "Debug command s", disasm_s},
 	{ "c", "Debug command c", disasm_c},
 	{ "einfo", "Display environment information", mon_mm_einfo},
@@ -50,6 +49,10 @@ static struct Command commands[] = {
 	{ "schedtest", "Test the fixed-priority scheduler", mon_mm_schedtest},
 	{ "matrixtest", "Test the matrix multiplication", mon_mm_matrixtest},
 	{ "powerseriestest", "Test the power series calculator", mon_mm_powerseriestest},
+	{ "ipctest", "Test the sleep & wake-up IPC", mon_mm_ipctest},
+	{ "idetest", "Test the interrupt-driven IDE", mon_mm_idetest},
+	{ "linktest", "Test FS hard link", mon_mm_linktest},
+	{ "exectest", "Test the exec command", mon_mm_exectest},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 

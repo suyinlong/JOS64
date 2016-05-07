@@ -280,6 +280,7 @@ serve(void) {
 			put_buffer(va);
 			continue;
 		}
+cprintf("here222\n");
 
 		// All remaining requests must contain an argument page
 		if (!(perm & PTE_P)) {
@@ -297,6 +298,7 @@ serve(void) {
 		args->whom = whom;
 		args->req = va;
 
+cprintf("here\n");
 		thread_create(0, "serve_thread", serve_thread, (uint64_t)args);
 		thread_yield(); // let the thread created run
 	}
@@ -307,7 +309,7 @@ tmain(uint64_t arg) {
 	serve_init(inet_addr(IP),
 		   inet_addr(MASK),
 		   inet_addr(DEFAULT));
-	serve();
+//	serve();
 }
 
 void
@@ -331,7 +333,7 @@ umain(int argc, char **argv)
 	if (input_envid < 0)
 		panic("error forking");
 	else if (input_envid == 0) {
-//		input(ns_envid);
+		input(ns_envid);
 		return;
 	}
 
@@ -341,7 +343,7 @@ umain(int argc, char **argv)
 	if (output_envid < 0)
 		panic("error forking");
 	else if (output_envid == 0) {
-//		output(ns_envid);
+		output(ns_envid);
 		return;
 	}
 
