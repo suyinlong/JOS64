@@ -5,9 +5,12 @@ submitted them with this lab, list them here, along with the lab number.
 ---------------------------------------------------------------------
 Challenge 1 of Lab 4
 
-Add glock
-add console lock on cprintf()
-need to do further work
+Add grained lock in kern/spinlock.h
+
+GLOCK_PGA: Page allocator lock, protect PageInfo structure
+GLOCK_CON: Protect console (monitor, series port, parallel port) I/O
+GLOCK_SCH: Protect our priority lists of scheduler (challenge 2 of lab 4)
+GLOCK_IPC: Protect our IPC message queue (challenge 8 of lab 4)
 
 ---------------------------------------------------------------------
 Challenge 2 of Lab 4
@@ -60,7 +63,7 @@ creates 3 environments (PRI_DEF = 20) then call scheduler:
     ENV_CREATE(user_printa, ENV_TYPE_USER, PRI_DEF);
     ENV_CREATE(user_printb, ENV_TYPE_USER, PRI_DEF - 10);
     ENV_CREATE(user_printd, ENV_TYPE_USER, PRI_DEF + 10);
-The sequence should be 'BAD'.
+With the priorities, the execution order should be printb > printa >printd
 
 ---------------------------------------------------------------------
 Challenge 3 of Lab 4
