@@ -280,7 +280,6 @@ serve(void) {
 			put_buffer(va);
 			continue;
 		}
-cprintf("here222\n");
 
 		// All remaining requests must contain an argument page
 		if (!(perm & PTE_P)) {
@@ -298,7 +297,6 @@ cprintf("here222\n");
 		args->whom = whom;
 		args->req = va;
 
-cprintf("here\n");
 		thread_create(0, "serve_thread", serve_thread, (uint64_t)args);
 		thread_yield(); // let the thread created run
 	}
@@ -309,7 +307,7 @@ tmain(uint64_t arg) {
 	serve_init(inet_addr(IP),
 		   inet_addr(MASK),
 		   inet_addr(DEFAULT));
-//	serve();
+	serve();
 }
 
 void

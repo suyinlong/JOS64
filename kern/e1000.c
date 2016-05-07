@@ -2,16 +2,15 @@
 
 // LAB 6: Your driver code here
 
-volatile char * e1000;				// memory mapping IO address for E1000
+volatile uint32_t * e1000;				// memory mapping IO address for E1000
 
 struct e1000_tx_desc tx_desc[E1000_TX_DESC];	// set up certain number of transmit descriptors
 struct e1000_rx_desc rx_desc[E1000_RX_DESC];	// set up certain number of receive descriptors
 
-struct e1000_tx_pkt tx_buff[E1000_TX_BUFF];	// set up some number of packets as transmit buffer
-struct e1000_rx_pkt rx_buff[E1000_RX_BUFF];	// set up some number of packets as receive buffer
+struct e1000_tx_pkt tx_buff[E1000_TX_DESC];	// set up some number of packets as transmit buffer
+struct e1000_rx_pkt rx_buff[E1000_RX_DESC];	// set up some number of packets as receive buffer
 
-int
-e1000_pci_attach(struct pci_func *f) {
+int e1000_pci_attach(struct pci_func *f){
 	int i;
 
 	// setup and enable PCI function
@@ -23,79 +22,118 @@ e1000_pci_attach(struct pci_func *f) {
 
 	// test mapping in exercise 4
 	// make sure the 4-byte status register is full duplex link at 1000 Mb/s 0x80080783
-	if (*((uint32_t *)&e1000[E1000_STATUS]) != 0x80080783)
-		panic("Intel E1000 in wrong status = %x", *((uint32_t *)&e1000[E1000_STATUS]));
+	if (e1000[E1000_STATUS] != 0x80080783)
+		panic("Intel E1000 in wrong status = %x", e1000[E1000_STATUS]);
 
-	// Initialize Transmit Buffer and Settings
-	// see Intel E1000 Manual section 14.5 for details
+	// E1000 Transmit Init
 
 	// #1 - program the transimit descriptor base address with the address of the region
 	// paragraph 1: .. both TDBAL and TDBAH are used for 64-bit addresses ..
-	E1000[E1000_TDBAL] = PADDR(tx_desc);
-	E1000[E1000_TDBAH] = PADDR(tx_desc) >> 32;
+	e1000[E1000_TDBAL] = PADDR(tx_desc);
+	e1000[E1000_TDBAH] = PADDR(tx_desc) >> 32;
 
 	// #2 - set the transmit descriptor length register to the size of descriptor ring
 	// paragraph 2: .. this register must be 128-byte aligned ..
-	E1000[E1000_TDLEN] = E1000_TX_DESC * sizeof(struct e1000_tx_desc);
+	e1000[E1000_TDLEN] = sizeof(struct e1000_tx_desc) * E1000_TX_DESC;
 
 	// #3 - initialize transmit descriptor head & tail
 	// paragraph 3: .. software should write 0b to both these registers to ensure this ..
-	E1000[E1000_TDH] = 0x0;
-	E1000[E1000_TDT] = 0x0;
+	e1000[E1000_TDH] = 0x0;
+	e1000[E1000_TDT] = 0x0;
 
 	// #4 - initialize the transmit control register(TCTL)
 	// paragraph 4.1: Set the Enable (TCTL.EN) bit to 1b for normal operation.
-	E1000[E1000_TCTL] = E1000_TCTL_EN;
+	e1000[E1000_TCTL] = E1000_TCTL_EN;
 	// paragraph 4.2: Set the Pad Short Packets (TCTL.PSP) bit to 1b.
-	E1000[E1000_TCTL] |= E1000_TCTL_PSP;
+	e1000[E1000_TCTL] |= E1000_TCTL_PSP;
 	// paragraph 4.3: Configure the Collision Threshold (TCTL.CT) to the desired value.
 	// paragraph 4.3: Ethernet standard is 10h.
-	E1000[E1000_TCTL] &= ~E1000_TCTL_CT;
-	E1000[E1000_TCTL] |= (0x10) << 4;
+	e1000[E1000_TCTL] &= ~E1000_TCTL_CT;
+	e1000[E1000_TCTL] |= (0x10) << 4;
 	// paragraph 4.4: Configure the Collision Distance (TCTL.COLD) to its expected value.
 	// paragraph 4.4: For gigabit half duplex, this value should be set to 200h.
-	E1000[E1000_TCTL] &= ~E1000_TCTL_COLD;
-	E1000[E1000_TCTL] |= (0x200) << 12;
+	e1000[E1000_TCTL] &= ~E1000_TCTL_COLD;
+	e1000[E1000_TCTL] |= (0x200) << 12;
 
 	// #5 - program the transmit IPG register
 	// paragraph 5: .. with the following decimal values to get the minimum legal Inter Packet Gap ..
 	// note: according to lab spec, do refer to Table 13-77 in the Intel E1000 Manual, IEEE 802.3 standard IPG value
 	// table 13-77: IPGT - .. the value that should be programmed into IPGT is 10 ..
-	E1000[E1000_TIPG] = 10;
+	e1000[E1000_TIPG] |= 10;
 	// table 13-77: IPGR1 - .. IPGR1 should be 2/3 of IPGR2 value ..
-	E1000[E1000_TIPG] |= 4 << 10;
+	e1000[E1000_TIPG] |= 4 << 10;
 	// table 13-77: IPGR2 - .. the value that should be programmed into IPGR2 is six ..
-	E1000[E1000_TIPG] |= 6 << 20;
+	e1000[E1000_TIPG] |= 6 << 20; 
 
-	// Initialize Receive Buffer and Settings
 
+	// E1000 Receive Init
+
+	// set receive address registers - MAC
+	e1000[E1000_RAL] = 0x12005452;
+	e1000[E1000_RAH] = 0x5634 | E1000_RAH_AV;
+	e1000[E1000_MTA] = 0x0;
+
+	// set receive base address registers
+	e1000[E1000_RDBAL] = PADDR(rx_desc);
+	e1000[E1000_RDBAH] = 0x0;
+
+	// set the receive length register
+	e1000[E1000_RDLEN] = sizeof(struct e1000_rx_desc) * E1000_RX_DESC;
+
+	// set head and tail registers
+	e1000[E1000_RDH] = 0x0;
+	e1000[E1000_RDT] = 0x0;
+
+	// initialize the receive control register
+	e1000[E1000_RCTL] |= E1000_RCTL_EN;
+	e1000[E1000_RCTL] |= E1000_RCTL_BAM;
+	e1000[E1000_RCTL] |= E1000_RCTL_SECRC;
+
+	// associate descriptors with packets - 1 to 1
+	for (i = 0; i < E1000_TX_DESC; i++) {
+		tx_desc[i].addr = PADDR(tx_buff[i].buf);
+		tx_desc[i].status |= E1000_TXD_STAT_DD;
+		rx_desc[i].addr = PADDR(rx_buff[i].buf);
+	}	
 
 	return 0;
 }
 
-int
-e1000_transmit(void *addr, size_t len) {
-	// wrong size of packet to transfer
-	if(len > E1000_TX_PKT)///////////////////////////////////////////////////////
-		return -E_E1000_TX;
+int e1000_transmit(char *data, int len)
+{
+	if (len > E1000_TX_PKT) {
+		return -1;
+	}
 
-	// simply drop the packet when the transmit queue is full
-	if((tx_desc[E1000[E1000_TDT]].status & E1000_TXD_STAT_DD) == 0)
-		return -E_E1000_TX;
+	if ((tx_desc[e1000[E1000_TDT]].status & E1000_TXD_STAT_DD) == 0)
+		return -1;
 
-	// it is safe to recycle tail descriptor and use it to transmit another packet
-	memmove(tx_buff[E1000[E1000_TDT]].buf, addr, len);
-	tx_desc[E1000[E1000_TDT]].length = len;
-	tx_desc[E1000[E1000_TDT]].status = 0;
-	tx_desc[E1000[E1000_TDT]].cmd |= E1000_TXD_CMD_RS | E1000_TXD_CMD_EOP;
+	memmove(tx_buff[e1000[E1000_TDT]].buf, data, len);
+	tx_desc[e1000[E1000_TDT]].length = len;
+	tx_desc[e1000[E1000_TDT]].status = 0;
+	tx_desc[e1000[E1000_TDT]].cmd |= E1000_TXD_CMD_RS | E1000_TXD_CMD_EOP;
 
-	// update the tail of transmit descriptor
-	E1000[E1000_TDT] = (E1000[E1000_TDT] + 1) / E1000_TX_DESC;
+	e1000[E1000_TDT] = (e1000[E1000_TDT] + 1) % E1000_TX_DESC;
 
 	return 0;
 }
 
-int
-e1000_receive(void *addr) {
-	return 0;
+int e1000_receive(char *data) {
+	int len;
+
+	if ((rx_desc[e1000[E1000_RDT]].status & E1000_RXD_STAT_DD) == 0)
+		return -1;
+
+	if ((rx_desc[e1000[E1000_RDT]].status & E1000_RXD_STAT_EOP) == 0)
+		return -1;
+
+	len = rx_desc[e1000[E1000_RDT]].length;
+
+	memmove(data, rx_buff[e1000[E1000_RDT]].buf, len);
+	rx_desc[e1000[E1000_RDT]].status &= ~E1000_RXD_STAT_DD;
+	rx_desc[e1000[E1000_RDT]].status &= ~E1000_RXD_STAT_EOP;
+
+	e1000[E1000_RDT] = (e1000[E1000_RDT] + 1) % E1000_RX_DESC;
+
+	return len;
 }

@@ -1,3 +1,5 @@
++ ld obj/kern/kernel
++ mk obj/kern/kernel.img
 6828 decimal is 15254 octal!
 
 e820 MEMORY MAP
@@ -30,5 +32,7 @@ block cache is good
 superblock is good
 bitmap is good
 FS has changed to interrupt-driven
-Sending ARP announcement...
-qemu: terminating on signal 15 from pid 5367
+ns: 52:54:00:12:34:56 bound to static IP 10.0.2.15
+NS: TCP/IP initialized.
+Waiting for http connections...
+qemu: terminating on signal 15 from pid 9178
